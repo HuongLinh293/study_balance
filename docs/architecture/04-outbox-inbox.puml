@@ -1,0 +1,56 @@
+@startuml 04-outbox-inbox
+!include _style.iuml
+title Tạo công việc — Transactional Outbox → RabbitMQ → Inbox (at-least-once, xử lý đúng một lần)
+autonumber
+
+actor "Trình duyệt" as web
+participant "Gateway" as gw
+participant "task-service" as ts
+database "task_db" as tdb
+participant "Outbox relay\n(mỗi 500 ms)" as relay
+queue "RabbitMQ" as mq
+participant "planning-service" as ps
+database "planning_db" as pdb
+
+web -> gw : POST /api/task/tasks {id: UUID do client sinh, ...}
+gw -> ts : proxy (round-robin giữa 2 bản sao)
+group Một transaction MySQL
+  ts -> tdb : INSERT tasks (version = 1)
+  ts -> tdb : INSERT outbox (TaskCreated, eventId)
+end
+ts --> web : 201 (gửi lại cùng id → 200, không tạo trùng)
+
+loop
+  relay -> tdb : SELECT … FROM outbox WHERE published_at IS NULL\nFOR UPDATE SKIP LOCKED
+  relay -> mq : publish (persistent) + chờ publisher confirm
+  mq --> relay : ack
+  relay -> tdb : UPDATE outbox SET published_at
+end
+
+mq -> ps : giao TaskCreated (queue planning-service.events)
+group Một transaction MySQL
+  ps -> pdb : INSERT processed_events (eventId)
+  alt eventId đã có (sự kiện trùng)
+    ps -> pdb : bỏ qua, ghi log event_duplicate_skipped
+  else lần đầu
+    ps -> pdb : upsert task_projection nếu aggregateVersion mới hơn
+  end
+end
+ps -> mq : ack
+
+== RabbitMQ ngắt ==
+web -> ts : POST /tasks
+ts -> tdb : INSERT tasks + outbox (vẫn thành công)
+relay -> relay : broker.connected = false → chờ
+web -> ps : POST /study-sessions cho task mới
+ps --> web : 409 TASK_NOT_SYNCED (không đoán dữ liệu)
+mq -> mq : bật lại
+relay -> mq : tự kết nối lại, phát bù từ outbox
+mq -> ps : TaskCreated → planning bắt kịp
+
+== Handler lỗi ==
+mq -> ps : giao sự kiện
+ps -> ps : handler ném lỗi → rollback
+ps -> mq : gửi sang <queue>.retry (x-attempt + 1), TTL 5 s rồi quay lại queue chính
+note right of mq : Sau 5 lần thất bại: nack → <queue>.dlq\n(metric outcome="dead_lettered", cảnh báo EventsDeadLettered)
+@enduml

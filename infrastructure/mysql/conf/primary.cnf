@@ -1,0 +1,5 @@
+# Primary: binary log (on by default) with GTIDs so the replica can auto-position.
+[mysqld]
+server_id = 1
+gtid_mode = ON
+enforce_gtid_consistency = ON

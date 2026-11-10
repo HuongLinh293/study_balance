@@ -1,0 +1,21 @@
+{
+  "name": "@studybalance/notification-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node --env-file-if-exists=.env dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@studybalance/event-contracts": "0.1.0",
+    "@studybalance/service-kit": "0.1.0",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0"
+  }
+}

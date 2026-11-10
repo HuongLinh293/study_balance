@@ -1,0 +1,39 @@
+' Shared look for every StudyBalance diagram.
+skinparam defaultFontName "DejaVu Sans"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #44546A
+skinparam ArrowFontSize 11
+skinparam ArrowFontColor #44546A
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor #F7F9FC
+  BorderColor #8A9BB4
+}
+skinparam component {
+  BackgroundColor #E8F0FE
+  BorderColor #4A6FA5
+}
+skinparam database {
+  BackgroundColor #FFF4E0
+  BorderColor #C58B2B
+}
+skinparam queue {
+  BackgroundColor #F3E8FD
+  BorderColor #7E57C2
+}
+skinparam node {
+  BackgroundColor #FFFFFF
+  BorderColor #8A9BB4
+}
+skinparam sequence {
+  ParticipantBackgroundColor #E8F0FE
+  ParticipantBorderColor #4A6FA5
+  LifeLineBorderColor #8A9BB4
+  GroupBackgroundColor #F7F9FC
+}
+skinparam note {
+  BackgroundColor #FFFDE7
+  BorderColor #C9B458
+}

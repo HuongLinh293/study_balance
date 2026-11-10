@@ -1,0 +1,229 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Hạ tầng StudyBalance</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one wide figure (scrolls on phones), then the event-routing table and notes. */
+:root {
+  --bg: #f6f7f9; --fg: #1b2230; --muted: #5c6678; --line: #a9b2c2;
+  --panel: #ffffff; --tint: #eceff4;
+  --pub: #0e7a6d; --sub: #b4530a;
+  --sans: "Be Vietnam Pro", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12161d; --fg: #e3e7ee; --muted: #98a2b3; --line: #4a5466;
+  --panel: #1b212b; --tint: #171c25; --pub: #3cc7b4; --sub: #f0a04b; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12161d; --fg: #e3e7ee; --muted: #98a2b3; --line: #4a5466;
+  --panel: #1b212b; --tint: #171c25; --pub: #3cc7b4; --sub: #f0a04b; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); line-height: 1.6; font-size: 16.5px; }
+main { max-width: 1060px; margin: 0 auto; padding-block: 32px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 28px; }
+h1 { font-size: 2rem; margin: 0; text-wrap: balance; }
+h2 { font-size: 1.3rem; margin: 0 0 10px; }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 65ch; }
+code, .mono { font-family: var(--mono); font-size: .86em; }
+
+figure { margin: 0; }
+.scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+svg { display: block; width: 100%; min-width: 860px; height: auto; color: var(--fg); }
+figcaption { margin-top: 10px; color: var(--muted); font-size: 1rem; max-width: 80ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 8px; font-size: .95rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 22px; height: 0; border-top: 2px solid var(--fg); }
+.sw.pub { border-color: var(--pub); } .sw.sub { border-color: var(--sub); } .sw.dash { border-top-style: dashed; }
+
+/* SVG classes */
+.box { fill: var(--panel); stroke: var(--line); stroke-width: 1.2; }
+.zone { fill: var(--tint); stroke: var(--line); }
+.boundary { fill: none; stroke: var(--line); stroke-dasharray: 6 5; }
+.t { fill: var(--fg); font-size: 14.5px; font-weight: 600; font-family: var(--sans); }
+.s { fill: var(--muted); font-size: 12.5px; font-family: var(--sans); }
+.m { fill: var(--fg); font-size: 12.5px; font-family: var(--mono); }
+.ms { fill: var(--muted); font-size: 12px; font-family: var(--mono); }
+.tier { fill: var(--fg); font-size: 14.5px; font-weight: 700; letter-spacing: .04em; font-family: var(--sans); }
+.sep { stroke: var(--line); }
+.box.hi { stroke: var(--fg); stroke-width: 1.6; }
+.lbl { fill: var(--muted); font-size: 12px; font-family: var(--mono); }
+.edge { stroke: var(--fg); stroke-width: 1.3; fill: none; }
+.edge.dash { stroke-dasharray: 5 4; }
+.edge.pub { stroke: var(--pub); stroke-width: 1.8; }
+.edge.sub { stroke: var(--sub); stroke-width: 1.8; }
+.ah { fill: var(--fg); } .ah.pub { fill: var(--pub); } .ah.sub { fill: var(--sub); }
+.lp { fill: var(--pub); font-size: 12px; font-family: var(--mono); }
+.ls { fill: var(--sub); font-size: 12px; font-family: var(--mono); }
+
+table { border-collapse: collapse; width: 100%; font-size: 1rem; }
+.tablewrap { overflow-x: auto; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+td.prod { color: var(--pub); font-weight: 600; } td.cons { color: var(--sub); }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 28px; margin: 0; padding: 0; list-style: none; }
+.notes li { min-width: 0; border-top: 1px solid var(--line); padding-top: 8px; font-size: 1rem; }
+.notes b { display: block; }
+</style>
+
+<main>
+  <header>
+    <h1>Hạ tầng StudyBalance</h1>
+    <p class="lede">Hệ thống chia 4 tầng: frontend chạy trong trình duyệt và gọi xuống backend qua một cổng Nginx duy nhất; 5 microservice Node xử lý nghiệp vụ; MySQL lưu dữ liệu theo từng service và RabbitMQ chuyển sự kiện giữa các service. Tất cả được chạy bằng một file <code>docker-compose.yml</code>.</p>
+  </header>
+
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 1000 612" role="img" aria-label="Sơ đồ 4 tầng: tầng client là trình duyệt chạy frontend React, gọi xuống gateway Nginx; gateway định tuyến tới 5 service nghiệp vụ và trả giao diện web từ container frontend; tầng dữ liệu gồm MySQL 5 schema và RabbitMQ.">
+      <defs>
+        <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah pub" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="as" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah sub" d="M0,0 L10,5 L0,10 z"/></marker>
+      </defs>
+
+      <!-- tier labels -->
+      <text class="tier" x="18" y="42">① CLIENT</text>
+      <text class="s" x="18" y="59">Presentation</text>
+      <text class="tier" x="18" y="137">② GATEWAY</text>
+      <text class="s" x="18" y="154">cổng vào duy nhất</text>
+      <text class="tier" x="18" y="262">③ NGHIỆP VỤ</text>
+      <text class="s" x="18" y="279">5 microservice</text>
+      <text class="tier" x="18" y="455">④ DỮ LIỆU</text>
+      <text class="s" x="18" y="472">MySQL + RabbitMQ</text>
+      <line class="sep" x1="18" y1="90" x2="160" y2="90"/>
+      <line class="sep" x1="18" y1="200" x2="160" y2="200"/>
+      <line class="sep" x1="18" y1="322" x2="160" y2="322"/>
+
+      <!-- compose network (frontend container sits inside it) -->
+      <path class="boundary" d="M172,90 H740 V8 H995 V602 H172 Z"/>
+      <text class="s" x="182" y="595">chạy trong Docker</text>
+
+      <!-- ① client -->
+      <rect class="box hi" x="179" y="20" width="546" height="50" rx="6"/>
+      <text class="t" x="452" y="41" text-anchor="middle">Trình duyệt chạy Frontend SPA</text>
+      <text class="s" x="452" y="58" text-anchor="middle">React + TypeScript</text>
+      <line class="edge" x1="452" y1="70" x2="452" y2="108" marker-end="url(#a)"/>
+      <text class="lbl" x="460" y="94">gọi /api/...</text>
+
+      <rect class="box" x="755" y="20" width="230" height="50" rx="6"/>
+      <text class="t" x="870" y="41" text-anchor="middle">container frontend</text>
+      <text class="s" x="870" y="58" text-anchor="middle">giao diện web (HTML/JS/CSS)</text>
+      <line class="edge dash" x1="870" y1="108" x2="870" y2="72" marker-start="url(#a)" marker-end="url(#a)"/>
+      <text class="s" x="862" y="102" text-anchor="end">gửi giao diện về trình duyệt</text>
+
+      <!-- ② gateway -->
+      <rect class="box" x="179" y="110" width="806" height="60" rx="6"/>
+      <text class="t" x="582" y="145" text-anchor="middle">Nginx API Gateway</text>
+
+      <line class="edge" x1="254" y1="170" x2="254" y2="228" marker-end="url(#a)"/>
+      <text class="lbl" x="248" y="205" text-anchor="end">/api/user/*</text>
+      <line class="edge" x1="418" y1="170" x2="418" y2="228" marker-end="url(#a)"/>
+      <text class="lbl" x="412" y="205" text-anchor="end">/api/task/*</text>
+      <line class="edge" x1="582" y1="170" x2="582" y2="228" marker-end="url(#a)"/>
+      <text class="lbl" x="576" y="205" text-anchor="end">/api/planning/*</text>
+      <line class="edge" x1="746" y1="170" x2="746" y2="228" marker-end="url(#a)"/>
+      <text class="lbl" x="740" y="205" text-anchor="end">/api/notification/*</text>
+      <line class="edge" x1="910" y1="170" x2="910" y2="228" marker-end="url(#a)"/>
+      <text class="lbl" x="904" y="205" text-anchor="end">/api/analytics/*</text>
+
+      <!-- ③ services -->
+      <rect class="box" x="179" y="230" width="150" height="70" rx="6"/>
+      <text class="t" x="254" y="261" text-anchor="middle">user-service</text>
+      <text class="s" x="254" y="281" text-anchor="middle">auth · gọi Google API</text>
+
+      <rect class="box" x="343" y="230" width="150" height="70" rx="6"/>
+      <text class="t" x="418" y="261" text-anchor="middle">task-service</text>
+      <text class="s" x="418" y="281" text-anchor="middle">công việc</text>
+
+      <rect class="box" x="507" y="230" width="150" height="70" rx="6"/>
+      <text class="t" x="582" y="261" text-anchor="middle">planning-service</text>
+      <text class="s" x="582" y="281" text-anchor="middle">kế hoạch · phiên học</text>
+
+      <rect class="box" x="671" y="230" width="150" height="70" rx="6"/>
+      <text class="t" x="746" y="261" text-anchor="middle" style="font-size:13.5px">notification-service</text>
+      <text class="s" x="746" y="281" text-anchor="middle">nhắc nhở</text>
+
+      <rect class="box" x="835" y="230" width="150" height="70" rx="6"/>
+      <text class="t" x="910" y="261" text-anchor="middle">analytics-service</text>
+      <text class="s" x="910" y="281" text-anchor="middle">thống kê</text>
+
+      <path class="edge dash" d="M290,300 V328 H612 V303" marker-end="url(#a)"/>
+      <line class="edge dash" x1="448" y1="328" x2="448" y2="303" marker-end="url(#a)"/>
+      <text class="s" x="300" y="317" style="font-size:11.5px">đồng bộ lịch Google</text>
+
+      <!-- ④ MySQL -->
+      <rect class="zone" x="179" y="342" width="806" height="96" rx="6"/>
+      <text class="t" x="191" y="361">MySQL</text>
+
+      <rect class="box" x="189" y="372" width="130" height="56" rx="5"/>
+      <text class="m" x="254" y="404" text-anchor="middle" font-weight="600">user_db</text>
+      <rect class="box" x="353" y="372" width="130" height="56" rx="5"/>
+      <text class="m" x="418" y="404" text-anchor="middle" font-weight="600">task_db</text>
+      <rect class="box" x="517" y="372" width="130" height="56" rx="5"/>
+      <text class="m" x="582" y="404" text-anchor="middle" font-weight="600">planning_db</text>
+      <rect class="box" x="681" y="372" width="130" height="56" rx="5"/>
+      <text class="m" x="746" y="404" text-anchor="middle" font-weight="600">notification_db</text>
+      <rect class="box" x="845" y="372" width="130" height="56" rx="5"/>
+      <text class="m" x="910" y="404" text-anchor="middle" font-weight="600">analytics_db</text>
+
+      <line class="edge" x1="254" y1="302" x2="254" y2="370" marker-start="url(#a)" marker-end="url(#a)"/>
+      <line class="edge" x1="418" y1="302" x2="418" y2="370" marker-start="url(#a)" marker-end="url(#a)"/>
+      <line class="edge" x1="582" y1="302" x2="582" y2="370" marker-start="url(#a)" marker-end="url(#a)"/>
+      <line class="edge" x1="746" y1="302" x2="746" y2="370" marker-start="url(#a)" marker-end="url(#a)"/>
+      <line class="edge" x1="910" y1="302" x2="910" y2="370" marker-start="url(#a)" marker-end="url(#a)"/>
+
+      <!-- ④ RabbitMQ -->
+      <rect class="zone" x="179" y="490" width="806" height="92" rx="6"/>
+      <text class="t" x="191" y="509">RabbitMQ</text>
+      <text class="s" x="582" y="548" text-anchor="middle" style="font-size:13.5px">chuyển sự kiện giữa các service</text>
+
+      <line class="edge pub" x1="254" y1="429" x2="254" y2="487" marker-end="url(#ap)"/>
+      <text class="lp" x="260" y="466">publish</text>
+      <line class="edge pub" x1="418" y1="429" x2="418" y2="487" marker-end="url(#ap)"/>
+      <text class="lp" x="424" y="466">publish</text>
+      <line class="edge pub" x1="564" y1="429" x2="564" y2="487" marker-end="url(#ap)"/>
+      <text class="lp" x="558" y="466" text-anchor="end">publish</text>
+      <line class="edge sub" x1="600" y1="489" x2="600" y2="431" marker-end="url(#as)"/>
+      <text class="ls" x="606" y="466">consume</text>
+      <line class="edge sub" x1="746" y1="489" x2="746" y2="431" marker-end="url(#as)"/>
+      <text class="ls" x="752" y="466">consume</text>
+      <line class="edge sub" x1="910" y1="489" x2="910" y2="431" marker-end="url(#as)"/>
+      <text class="ls" x="916" y="466">consume</text>
+    </svg>
+    </div>
+    <div class="legend">
+      <span><i class="sw"></i>gọi API · đọc/ghi database</span>
+      <span><i class="sw dash"></i>tải giao diện web · gọi nội bộ giữa service</span>
+      <span><i class="sw pub"></i>phát sự kiện</span>
+      <span><i class="sw sub"></i>nhận sự kiện</span>
+    </div>
+    <figcaption>Đọc từ trên xuống: request đi từ frontend trong trình duyệt, qua gateway, tới service, rồi xuống tầng dữ liệu. Container <code>frontend</code> chỉ gửi giao diện web (HTML/JS/CSS) khi gateway nhận đường <code>/</code>, nó không gọi tới service nào; dữ liệu thì frontend lấy qua <code>/api/...</code>. Các service không đọc DB của nhau mà đồng bộ bằng sự kiện qua RabbitMQ; sự kiện được ghi vào bảng outbox cùng transaction với dữ liệu nên không mất khi broker tạm dừng.</figcaption>
+  </figure>
+
+  <section>
+    <h2>Ai phát, ai nghe sự kiện nào</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Sự kiện</th><th>Phát từ</th><th>Được nghe bởi</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">PreferencesUpdated</td><td class="prod">user</td><td class="cons">planning, notification, analytics</td></tr>
+        <tr><td class="mono">AvailabilityUpdated</td><td class="prod">user</td><td class="cons">planning</td></tr>
+        <tr><td class="mono">TaskCreated · TaskUpdated · TaskProgressUpdated · TaskDeleted</td><td class="prod">task</td><td class="cons">planning, notification, analytics</td></tr>
+        <tr><td class="mono">StudySessionUpdated</td><td class="prod">planning</td><td class="cons">notification</td></tr>
+        <tr><td class="mono">StudySessionCompleted</td><td class="prod">planning</td><td class="cons">analytics</td></tr>
+        <tr><td class="mono">PlanUpdated</td><td class="prod">planning</td><td class="cons">chưa có service nào nghe</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ghi chú vận hành</h2>
+    <ul class="notes">
+      <li><b>Thứ tự khởi động</b>MySQL và RabbitMQ healthy → 5 service → gateway.</li>
+      <li><b>Cô lập dữ liệu</b>Mỗi service có tài khoản MySQL riêng và chỉ thấy schema của mình.</li>
+    </ul>
+  </section>
+</main>
+
+</body></html>

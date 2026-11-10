@@ -1,0 +1,7 @@
+# Read-only replica. replica-setup seeds it, starts replication and persists
+# super_read_only (not set here: the image's first-start init must still write).
+[mysqld]
+server_id = 2
+gtid_mode = ON
+enforce_gtid_consistency = ON
+relay_log_recovery = ON

@@ -1,0 +1,76 @@
+@startuml 02-trien-khai
+!include _style.iuml
+title Sơ đồ triển khai — Docker Compose trên một máy
+
+node "Máy chủ Docker" {
+  node "gateway\nnginx:stable-alpine\n127.0.0.1:8088" as gw
+  node "frontend\nnginx (bản build Vite)" as fe
+
+  node "user-service :3001" as us
+  node "task-service-1 :3002" as ts1
+  node "task-service-2 :3002" as ts2
+  node "planning-service-1 :3003" as ps1
+  node "planning-service-2 :3003" as ps2
+  node "notification-service :3004" as ns
+  node "analytics-service :3005" as as
+
+  node "rabbitmq:4-management\n:5672, UI :15672,\nmetrics :15692" as mq
+  database "mysql (primary)\nGTID, binlog\n5 database, 5 tài khoản" as db
+  database "mysql-replica\nsuper_read_only\n127.0.0.1:3307" as rep
+  node "replica-setup\n(chạy một lần)" as rs
+  node "backup\nmysqldump định kỳ" as bk
+
+  node "prometheus :9090\nDNS discovery, 8 cảnh báo" as prom
+  node "grafana :3030\ndashboard tổng quan" as graf
+
+  storage "volume mysql_data" as v1
+  storage "volume mysql_replica_data" as v2
+  storage "./backups\n(giữ 7 lượt + SHA256SUMS)" as v3
+}
+
+gw --> fe : /
+gw --> us
+gw --> ts1
+gw --> ts2
+gw --> ps1
+gw --> ps2
+gw --> ns
+gw --> as
+note right of gw
+  Tên service phân giải ra nhiều IP:
+  round-robin, lỗi kết nối/502/503
+  thì chuyển sang bản sao kế tiếp.
+end note
+
+us --> db
+ts1 --> db
+ts2 --> db
+ps1 --> db
+ps2 --> db
+ns --> db
+as --> db
+us --> mq
+ts1 --> mq
+ps1 --> mq
+ns --> mq
+as --> mq
+
+db --> rep : replication\n(GTID, TLS)
+rs ..> rep : seed + START REPLICA
+bk --> db : mysqldump\n--single-transaction
+bk --> v3
+db -- v1
+rep -- v2
+
+prom ..> us : /metrics
+prom ..> ts1
+prom ..> ps1
+prom ..> mq
+graf --> prom
+
+legend bottom
+  Mọi container chạy lâu dài: restart: unless-stopped.
+  Service chỉ healthy khi /ready xác nhận DB và broker.
+  Cổng chỉ bind 127.0.0.1 (môi trường dev).
+endlegend
+@enduml

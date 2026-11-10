@@ -1,0 +1,42 @@
+@startuml 03-ban-do-su-kien
+!include _style.iuml
+title Bản đồ sự kiện — ai phát, ai nhận
+left to right direction
+
+rectangle "Producer" {
+  component "user-service" as us
+  component "task-service" as ts
+  component "planning-service" as psp
+}
+queue "studybalance.events\n(topic, routing key = eventType)" as ex
+rectangle "Queue riêng của từng consumer\n(<service>.events, .retry TTL 5s, .dlq)" {
+  queue "planning-service.events" as qp
+  queue "notification-service.events" as qn
+  queue "analytics-service.events" as qa
+}
+rectangle "Consumer" {
+  component "planning-service" as psc
+  component "notification-service" as ns
+  component "analytics-service" as as
+}
+
+us --> ex : PreferencesUpdated\nAvailabilityUpdated
+ts --> ex : TaskCreated, TaskUpdated\nTaskProgressUpdated, TaskDeleted
+psp --> ex : StudySessionUpdated\nStudySessionCompleted\nPlanUpdated
+
+ex --> qp : Task* + PreferencesUpdated\n+ AvailabilityUpdated
+ex --> qn : Task* + PreferencesUpdated\n+ StudySessionUpdated
+ex --> qa : Task* + PreferencesUpdated\n+ StudySessionCompleted
+
+qp --> psc
+qn --> ns
+qa --> as
+
+note bottom of ex
+  Envelope: eventId (UUID), eventType, schemaVersion, occurredAt, producer,
+  aggregateId, aggregateVersion, userId, correlationId, payload (snapshot đầy đủ).
+  Consumer chỉ ghi khi aggregateVersion mới hơn bản đang giữ,
+  nên sự kiện đến trễ hoặc lệch thứ tự không ghi đè dữ liệu mới.
+  PlanUpdated hiện chưa có consumer (dành cho mở rộng).
+end note
+@enduml

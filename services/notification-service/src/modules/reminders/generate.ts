@@ -1,0 +1,68 @@
+import { randomUUID } from 'node:crypto';
+import { addDays, errorMessage, exec, localNow, rows, type Db, type Logger, type Pool } from '@studybalance/service-kit';
+import { remindersFor, type ReminderTask } from './rules.js';
+
+/**
+ * Brings one user's reminders in line with the current projections: inserts
+ * missing ones (INSERT IGNORE on the dedupe key) and removes unread reminders
+ * that no longer apply (task done, deleted, deadline moved, plan emptied).
+ */
+export async function syncReminders(db: Db, userId: string, now = new Date()) {
+  const [prefs] = await rows<{ reminders: number; timezone: string }>(
+    db,
+    'SELECT reminders, timezone FROM preferences_projection WHERE user_id = ?',
+    [userId],
+  );
+  const enabled = prefs ? Boolean(prefs.reminders) : true;
+  const today = localNow(prefs?.timezone, now).date;
+  const desired = enabled
+    ? remindersFor(
+        today,
+        (
+          await rows<{ task_id: string; title: string; due_date: string; remaining_minutes: number }>(
+            db,
+            'SELECT task_id, title, due_date, remaining_minutes FROM task_projection WHERE user_id = ? AND done = 0 AND deleted = 0 AND due_date <= ?',
+            [userId, addDays(today, 1)],
+          )
+        ).map<ReminderTask>((t) => ({ taskId: t.task_id, title: t.title, dueDate: t.due_date, remainingMinutes: t.remaining_minutes })),
+        (
+          await rows<{ n: number }>(
+            db,
+            "SELECT COUNT(*) AS n FROM session_projection WHERE user_id = ? AND date = ? AND status = 'planned' AND deleted = 0",
+            [userId, today],
+          )
+        )[0].n,
+      )
+    : [];
+  await exec(
+    db,
+    `DELETE FROM notifications WHERE user_id = ? AND read_at IS NULL${desired.length ? ' AND dedupe_key NOT IN (?)' : ''}`,
+    desired.length ? [userId, desired.map((r) => r.dedupeKey)] : [userId],
+  );
+  for (const r of desired) {
+    await exec(
+      db,
+      'INSERT IGNORE INTO notifications (id, user_id, kind, dedupe_key, task_id, title, body) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [randomUUID(), userId, r.kind, r.dedupeKey, r.taskId, r.title, r.body],
+    );
+  }
+}
+
+/** Periodic pass for date rollover (a task becomes "due tomorrow" without any event). */
+export function startReminderScheduler(pool: Pool, log: Logger, intervalMs = 60_000) {
+  const run = async () => {
+    try {
+      const users = await rows<{ user_id: string }>(
+        pool,
+        `SELECT user_id FROM task_projection WHERE done = 0 AND deleted = 0
+         UNION SELECT user_id FROM session_projection WHERE status = 'planned' AND deleted = 0`,
+      );
+      for (const { user_id } of users) await syncReminders(pool, user_id);
+    } catch (error) {
+      log.error('reminder_scheduler_failed', { error: errorMessage(error) });
+    }
+  };
+  void run();
+  const timer = setInterval(run, intervalMs);
+  return () => clearInterval(timer);
+}

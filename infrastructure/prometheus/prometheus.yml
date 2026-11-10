@@ -1,0 +1,24 @@
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+rule_files:
+  - /etc/prometheus/alerts.yml
+scrape_configs:
+  # DNS service discovery: every replica of a service is its own target (instance label).
+  - job_name: services
+    dns_sd_configs:
+      - { names: [user-service], type: A, port: 3001, refresh_interval: 15s }
+      - { names: [task-service], type: A, port: 3002, refresh_interval: 15s }
+      - { names: [planning-service], type: A, port: 3003, refresh_interval: 15s }
+      - { names: [notification-service], type: A, port: 3004, refresh_interval: 15s }
+      - { names: [analytics-service], type: A, port: 3005, refresh_interval: 15s }
+    relabel_configs:
+      - source_labels: [__meta_dns_name]
+        target_label: app
+  - job_name: rabbitmq
+    metrics_path: /metrics/per-object
+    static_configs:
+      - targets: ['rabbitmq:15692']
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']

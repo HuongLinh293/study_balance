@@ -1,0 +1,613 @@
+{
+ "uid": "studybalance",
+ "title": "StudyBalance — Tổng quan hệ thống",
+ "tags": [
+  "studybalance"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "refresh": "10s",
+ "time": {
+  "from": "now-30m",
+  "to": "now"
+ },
+ "panels": [
+  {
+   "id": 1,
+   "type": "row",
+   "title": "Sức khỏe",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 2,
+   "title": "Instance (up)",
+   "type": "stat",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 1,
+    "w": 12,
+    "h": 5
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "up{job=\"services\"}",
+     "legendFormat": "{{app}} {{instance}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "DOWN",
+         "color": "red"
+        },
+        "1": {
+         "text": "UP",
+         "color": "green"
+        }
+       }
+      }
+     ],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   },
+   "description": "Mỗi bản sao một ô. Prometheus tìm bản sao qua DNS của Docker."
+  },
+  {
+   "id": 3,
+   "title": "RabbitMQ channel",
+   "type": "stat",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 1,
+    "w": 6,
+    "h": 5
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "max by (service) (studybalance_broker_connected)",
+     "legendFormat": "{{service}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "DOWN",
+         "color": "red"
+        },
+        "1": {
+         "text": "UP",
+         "color": "green"
+        }
+       }
+      }
+     ],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   }
+  },
+  {
+   "id": 4,
+   "title": "Circuit breaker",
+   "type": "stat",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 18,
+    "y": 1,
+    "w": 6,
+    "h": 5
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "max by (circuit) (studybalance_circuit_state)",
+     "legendFormat": "{{circuit}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "closed",
+         "color": "green"
+        },
+        "1": {
+         "text": "half-open",
+         "color": "yellow"
+        },
+        "2": {
+         "text": "OPEN",
+         "color": "red"
+        }
+       }
+      }
+     ],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "yellow",
+        "value": 1
+       },
+       {
+        "color": "red",
+        "value": 2
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   },
+   "description": "user-service → planning, task, Google Calendar"
+  },
+  {
+   "id": 5,
+   "type": "row",
+   "title": "HTTP",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 6,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 6,
+   "title": "Request/s theo service",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 7,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (service) (rate(studybalance_http_request_duration_seconds_count[1m]))",
+     "legendFormat": "{{service}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 7,
+   "title": "Request/s theo bản sao (cân bằng tải)",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 7,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (app, instance) (rate(studybalance_http_request_duration_seconds_count{app=~\"task-service|planning-service\"}[1m]))",
+     "legendFormat": "{{app}} {{instance}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "Nginx chia request giữa các bản sao task-service và planning-service."
+  },
+  {
+   "id": 8,
+   "title": "Latency p95",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 7,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "histogram_quantile(0.95, sum by (le, service) (rate(studybalance_http_request_duration_seconds_bucket[5m])))",
+     "legendFormat": "{{service}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 9,
+   "title": "Tỉ lệ lỗi 5xx",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 15,
+    "w": 12,
+    "h": 7
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "(sum by (service) (rate(studybalance_http_request_duration_seconds_count{status=~\"5..\"}[5m])) or 0 * sum by (service) (rate(studybalance_http_request_duration_seconds_count[5m]))) / sum by (service) (rate(studybalance_http_request_duration_seconds_count[5m]))",
+     "legendFormat": "{{service}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 10,
+   "title": "Route chậm nhất (p95, 15 phút)",
+   "type": "table",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 15,
+    "w": 12,
+    "h": 7
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "topk(10, histogram_quantile(0.95, sum by (le, service, route) (rate(studybalance_http_request_duration_seconds_bucket[15m]))))",
+     "format": "table",
+     "instant": true
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {
+    "showHeader": true
+   }
+  },
+  {
+   "id": 11,
+   "type": "row",
+   "title": "Sự kiện",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 22,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 12,
+   "title": "Sự kiện phát (outbox → RabbitMQ)/s",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 23,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (service) (rate(studybalance_events_published_total[1m]))",
+     "legendFormat": "{{service}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "ops"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 13,
+   "title": "Sự kiện nhận theo kết quả/s",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 23,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (service, outcome) (rate(studybalance_events_consumed_total[1m]))",
+     "legendFormat": "{{service}} {{outcome}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "ops"
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "processed, duplicate (inbox bỏ qua), retry, dead_lettered"
+  },
+  {
+   "id": 14,
+   "title": "Outbox chưa phát",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 23,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "max by (service) (studybalance_outbox_pending)",
+     "legendFormat": "{{service}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {},
+   "description": "Tăng khi RabbitMQ ngắt; giảm về 0 khi relay phát bù."
+  },
+  {
+   "id": 15,
+   "title": "Hàng đợi RabbitMQ (ready)",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 31,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (queue) (rabbitmq_detailed_queue_messages_ready) or sum by (queue) (rabbitmq_queue_messages_ready)",
+     "legendFormat": "{{queue}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 16,
+   "title": "Tài nguyên tiến trình (RSS)",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 31,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "process_resident_memory_bytes{job=\"services\"}",
+     "legendFormat": "{{app}} {{instance}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes"
+    },
+    "overrides": []
+   },
+   "options": {}
+  }
+ ]
+}

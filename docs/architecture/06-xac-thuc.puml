@@ -1,0 +1,29 @@
+@startuml 06-xac-thuc
+!include _style.iuml
+title Định danh và xác thực — JWT ngắn hạn + refresh token xoay vòng
+autonumber
+
+actor "Trình duyệt" as b
+participant "user-service" as us
+database "user_db" as db
+participant "task-service\n(mọi service khác tương tự)" as ts
+
+b -> us : POST /auth/login {email, password}
+us -> db : kiểm tra scrypt; sai >10 lần/15 phút theo IP+email → 429
+us -> db : INSERT refresh_tokens (id, family_id UUID, SHA-256(token))
+us --> b : accessToken (JWT HS256, sub = userId UUID, iss/aud, 15 phút)\n+ cookie sb_refresh (HttpOnly, SameSite=Strict, Path=/api/user/auth)
+
+b -> ts : GET /tasks  Authorization: Bearer JWT
+ts -> ts : tự kiểm tra chữ ký, iss, aud, exp\n(không tin gateway)
+ts --> b : chỉ dữ liệu có user_id = sub; của người khác → 404
+
+b -> us : POST /auth/refresh (cookie + X-StudyBalance-Client: web)
+us -> db : SELECT … FOR UPDATE theo hash
+alt token còn hiệu lực
+  us -> db : thu hồi token cũ, cấp token mới cùng family_id
+  us --> b : accessToken mới + cookie mới
+else token đã bị dùng (có thể bị đánh cắp)
+  us -> db : thu hồi cả family_id
+  us --> b : 401, mọi phiên của họ token bị đăng xuất
+end
+@enduml

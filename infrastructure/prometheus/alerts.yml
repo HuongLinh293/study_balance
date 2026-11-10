@@ -1,0 +1,58 @@
+groups:
+  - name: studybalance
+    rules:
+      # Targets come from Docker DNS: a stopped replica disappears instead of reporting up == 0.
+      # So alert on "no healthy replica" and on "fewer replicas than deployed".
+      - alert: ServiceDown
+        expr: |
+          absent(up{job="services", app="user-service"} == 1) or
+          absent(up{job="services", app="task-service"} == 1) or
+          absent(up{job="services", app="planning-service"} == 1) or
+          absent(up{job="services", app="notification-service"} == 1) or
+          absent(up{job="services", app="analytics-service"} == 1)
+        for: 30s
+        labels: { severity: critical }
+        annotations:
+          summary: "No healthy replica of {{ $labels.app }}"
+      - alert: ReplicasBelowDesired
+        expr: count by (app) (up{job="services", app=~"task-service|planning-service"} == 1) < 2
+        for: 30s
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.app }} runs {{ $value }} of 2 replicas; the gateway sends all traffic to the rest"
+      - alert: ServiceInstanceDown
+        expr: up{job="services"} == 0
+        for: 30s
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.app }} ({{ $labels.instance }}) resolves but does not answer /metrics"
+      - alert: BrokerDisconnected
+        expr: studybalance_broker_connected == 0
+        for: 30s
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.service }} lost its RabbitMQ channel; events wait in the outbox"
+      - alert: OutboxBacklog
+        expr: studybalance_outbox_pending > 50
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.service }} has {{ $value }} unpublished events"
+      - alert: CircuitOpen
+        expr: studybalance_circuit_state == 2
+        labels: { severity: warning }
+        annotations:
+          summary: "Circuit {{ $labels.circuit }} in {{ $labels.service }} is open"
+      - alert: EventsDeadLettered
+        expr: increase(studybalance_events_consumed_total{outcome="dead_lettered"}[10m]) > 0
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.service }} dead-lettered {{ $labels.event_type }} events"
+      - alert: HighServerErrorRate
+        expr: |
+          sum by (service) (rate(studybalance_http_request_duration_seconds_count{status=~"5.."}[5m]))
+            / sum by (service) (rate(studybalance_http_request_duration_seconds_count[5m])) > 0.05
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.service }}: more than 5% of requests fail with 5xx"

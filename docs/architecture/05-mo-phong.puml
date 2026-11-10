@@ -1,0 +1,39 @@
+@startuml 05-mo-phong
+!include _style.iuml
+title "Nếu… thì sao?" — xem trước mô phỏng rồi mới áp dụng
+autonumber
+
+actor "Sinh viên" as u
+participant "Frontend" as fe
+participant "planning-service" as ps
+database "planning_db" as pdb
+participant "user-service" as us
+queue "RabbitMQ" as mq
+
+u -> fe : "Chiều nay tôi bận"
+fe -> ps : POST /simulations {scenario: afternoon}
+ps -> pdb : đọc phiên, projection công việc/thiết lập/lịch rảnh
+ps -> ps : chuyển phiên trùng khoảng bận tới chỗ trống sớm nhất\ntrước deadline (tối đa 60 ngày)
+ps -> pdb : INSERT simulations (result, basis = dấu vân tay phiên bản dữ liệu)
+ps --> fe : {moved, unscheduled[reason: deadline|no_time], feasible}
+fe --> u : hiển thị trước/sau, lịch chưa đổi
+
+u -> fe : Áp dụng
+fe -> ps : POST /simulations/:id/apply
+group Một transaction (khóa theo người dùng)
+  ps -> pdb : tính lại basis
+  alt basis khác, sang ngày khác hoặc preview > 30 phút
+    ps -> pdb : status = stale
+    ps --> fe : 409 SIMULATION_STALE → tạo mô phỏng mới
+  else còn phiên không xếp được và không chọn dropUnscheduled
+    ps --> fe : 422 SIMULATION_INFEASIBLE
+  else hợp lệ
+    ps -> pdb : UPDATE study_sessions (version + 1)
+    ps -> pdb : outbox: StudySessionUpdated ×n, PlanUpdated
+    ps --> fe : 200 applied
+  end
+end
+fe -> us : POST /me/busy-periods (lưu khoảng bận sau khi áp dụng)
+us -> mq : AvailabilityUpdated → planning cập nhật projection
+note over ps : Kiểm tra lạc quan bằng basis:\nkhông giữ khóa trong lúc người dùng suy nghĩ,\nnhưng không áp dụng lên dữ liệu đã đổi.
+@enduml

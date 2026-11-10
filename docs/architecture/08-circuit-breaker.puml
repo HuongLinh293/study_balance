@@ -1,0 +1,19 @@
+@startuml 08-circuit-breaker
+!include _style.iuml
+title Trạng thái circuit breaker (packages/service-kit/src/circuitBreaker.ts)
+hide empty description
+
+[*] --> Closed
+Closed : gọi bình thường
+Closed : đếm lỗi liên tiếp
+Open : thất bại ngay (CircuitOpenError)
+Open : không gọi service phụ thuộc
+HalfOpen : cho đúng 1 lần gọi thử
+HalfOpen : các lời gọi khác bị từ chối
+
+Closed --> Closed : thành công → đếm = 0\nlỗi 4xx (isFailure = false)
+Closed --> Open : 5 lỗi liên tiếp\n(mạng, timeout, 5xx, 429)
+Open --> HalfOpen : sau resetTimeout\n(30 s; Google 60 s)
+HalfOpen --> Closed : lần thử thành công\nhoặc service trả 4xx
+HalfOpen --> Open : lần thử lỗi
+@enduml

@@ -1,0 +1,38 @@
+@startuml 07-chiu-loi
+!include _style.iuml
+title Chịu lỗi khi gọi qua gateway và giữa các service
+
+actor "Trình duyệt" as b
+participant "Nginx gateway" as gw
+participant "task-service-1" as t1
+participant "task-service-2" as t2
+participant "user-service" as us
+participant "Circuit breaker\nplanning-service" as cb
+participant "planning-service" as ps
+participant "Prometheus" as prom
+
+== Một bản sao chết ==
+b -> gw : GET /api/task/tasks
+gw -> t1 : (round-robin)
+t1 -[#red]x gw : connection refused
+gw -> t2 : proxy_next_upstream (chỉ với lỗi kết nối/502/503)
+t2 --> b : 200  X-Served-By: task-service-2
+prom -> prom : count(up{app="task-service"}==1) < 2 trong 30 s\n→ ReplicasBelowDesired
+note over t1 : Tiến trình tự thoát → Docker\nrestart: unless-stopped khởi động lại,\nchỉ nhận traffic khi /ready OK
+
+== Service phụ thuộc lỗi (đồng bộ Google Calendar) ==
+loop 5 lần liên tiếp
+  us -> cb : exec(GET /study-sessions)
+  cb -> ps : fetch (timeout 5 s)
+  ps -[#red]-> cb : lỗi mạng / timeout / 5xx
+  cb --> us : ném lỗi → user-service trả\n503 GOOGLE_SOURCE_UNAVAILABLE
+end
+cb -> cb : closed → OPEN (metric circuit_state = 2,\ncảnh báo CircuitOpen)
+us -> cb : exec(...)
+cb --> us : CircuitOpenError ngay lập tức\n(không chờ timeout, không dồn tải lên planning)
+... sau 30 giây ...
+us -> cb : exec(...)
+cb -> ps : một lần gọi thử (half-open)
+ps --> cb : 200
+cb -> cb : → closed
+@enduml

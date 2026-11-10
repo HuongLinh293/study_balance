@@ -1,0 +1,63 @@
+@startuml 01-tong-quan
+!include _style.iuml
+title StudyBalance — Kiến trúc tổng thể (5 microservice hướng sự kiện)
+top to bottom direction
+
+actor "Sinh viên" as user
+rectangle "Trình duyệt\nReact + TanStack Query" as web
+component "API Gateway — Nginx :8088\n/api/<service>/* → service tương ứng" as gw
+
+package "user-service" as P1 {
+  component "tài khoản, JWT,\nlịch rảnh/bận, thiết lập,\nGoogle Calendar" as us
+  database "user_db" as udb
+}
+package "task-service ×2" as P2 {
+  component "môn học, công việc,\ntiến độ" as ts
+  database "task_db" as tdb
+}
+package "planning-service ×2" as P3 {
+  component "phiên học, đề xuất,\nmô phỏng" as ps
+  database "planning_db" as pdb
+}
+package "notification-service" as P4 {
+  component "nhắc việc\ntrong app" as ns
+  database "notification_db" as ndb
+}
+package "analytics-service" as P5 {
+  component "thống kê\ntừ sự kiện" as as
+  database "analytics_db" as adb
+}
+
+queue "RabbitMQ — exchange studybalance.events (topic)\nmỗi consumer một queue + retry (TTL 5 s) + DLQ" as mq
+cloud "Google Calendar API" as google
+
+user -down-> web
+web -down-> gw : HTTP/JSON, Bearer JWT\n(chưa bật TLS)
+gw -down-> us
+gw -down-> ts
+gw -down-> ps
+gw -down-> ns
+gw -down-> as
+
+us -down- udb
+ts -down- tdb
+ps -down- pdb
+ns -down- ndb
+as -down- adb
+
+udb -[hidden]down-> mq
+us .down.> mq : phát
+ts .down.> mq : phát
+ps <.down.> mq : phát + nhận
+mq .up.> ns : nhận
+mq .up.> as : nhận
+
+us -right-> ts : REST nội bộ\n(circuit breaker)
+us -left-> google : OAuth 2.0\n(circuit breaker)
+
+legend bottom
+  Nét liền: HTTP đồng bộ. Nét đứt: sự kiện bất đồng bộ (chi tiết ở sơ đồ 03).
+  Mỗi service chỉ đọc/ghi database của mình; dữ liệu của service khác đến qua sự kiện
+  và được lưu thành projection cục bộ. user-service cũng gọi REST tới planning-service.
+endlegend
+@enduml
