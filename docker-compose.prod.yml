@@ -1,0 +1,24 @@
+# Overrides for a public server (Oracle Cloud VM, see docs/deploy-oracle.md).
+# Use through scripts/deploy/server.sh, which runs:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml …
+# Only the gateway is reachable from the Internet (80 → redirect, 443 → app).
+# MySQL, RabbitMQ, Prometheus and Grafana stay on 127.0.0.1: reach them over SSH.
+services:
+  gateway:
+    ports: !override
+      - "80:80"
+      - "443:443"
+    environment:
+      GATEWAY_HTTPS_PORT: 443
+    volumes:
+      # HTTP-01 challenge files written by certbot.
+      - ./infrastructure/nginx/acme:/var/www/acme:ro
+  # One-shot Let's Encrypt client, run by scripts/deploy/server.sh cert.
+  # The deploy hook copies a new or renewed certificate to where the gateway reads it.
+  certbot:
+    image: certbot/certbot:v2.11.0
+    profiles: [tools]
+    volumes:
+      - ./infrastructure/nginx/acme:/var/www/acme
+      - ./infrastructure/nginx/letsencrypt:/etc/letsencrypt
+      - ./infrastructure/nginx/certs:/certs

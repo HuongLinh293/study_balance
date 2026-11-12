@@ -5,6 +5,12 @@ services:
     image: mysql:8.4
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-local_root_change_me}
+      # Read by infrastructure/mysql/init/01-databases.sh on first start.
+      USER_DB_PASSWORD: ${USER_DB_PASSWORD:-local_user_change_me}
+      TASK_DB_PASSWORD: ${TASK_DB_PASSWORD:-local_task_change_me}
+      PLANNING_DB_PASSWORD: ${PLANNING_DB_PASSWORD:-local_planning_change_me}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-local_notification_change_me}
+      ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD:-local_analytics_change_me}
     ports: ["127.0.0.1:3306:3306"]
     volumes:
       - mysql_data:/var/lib/mysql
@@ -21,6 +27,12 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-local_root_change_me}
+      # Read by infrastructure/mysql/init/01-databases.sh on first start.
+      USER_DB_PASSWORD: ${USER_DB_PASSWORD:-local_user_change_me}
+      TASK_DB_PASSWORD: ${TASK_DB_PASSWORD:-local_task_change_me}
+      PLANNING_DB_PASSWORD: ${PLANNING_DB_PASSWORD:-local_planning_change_me}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-local_notification_change_me}
+      ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD:-local_analytics_change_me}
     ports: ["127.0.0.1:3307:3306"]
     volumes:
       - mysql_replica_data:/var/lib/mysql
@@ -91,7 +103,7 @@ services:
       TASK_SERVICE_URL: http://task-service:3002
       # The gateway serves HTTPS, so the refresh cookie is Secure by default.
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
-      DATABASE_URL: mysql://user_app:local_user_change_me@mysql:3306/user_db
+      DATABASE_URL: mysql://user_app:${USER_DB_PASSWORD:-local_user_change_me}@mysql:3306/user_db
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-studybalance}:${RABBITMQ_DEFAULT_PASS:-local_broker_change_me}@rabbitmq:5672
       JWT_SECRET: ${JWT_SECRET:-local_jwt_secret_change_me_0123456789abcdef}
     depends_on:
@@ -112,7 +124,7 @@ services:
       dockerfile: services/task-service/Dockerfile
     environment:
       PORT: 3002
-      DATABASE_URL: mysql://task_app:local_task_change_me@mysql:3306/task_db
+      DATABASE_URL: mysql://task_app:${TASK_DB_PASSWORD:-local_task_change_me}@mysql:3306/task_db
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-studybalance}:${RABBITMQ_DEFAULT_PASS:-local_broker_change_me}@rabbitmq:5672
       JWT_SECRET: ${JWT_SECRET:-local_jwt_secret_change_me_0123456789abcdef}
     depends_on:
@@ -133,7 +145,7 @@ services:
       dockerfile: services/planning-service/Dockerfile
     environment:
       PORT: 3003
-      DATABASE_URL: mysql://planning_app:local_planning_change_me@mysql:3306/planning_db
+      DATABASE_URL: mysql://planning_app:${PLANNING_DB_PASSWORD:-local_planning_change_me}@mysql:3306/planning_db
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-studybalance}:${RABBITMQ_DEFAULT_PASS:-local_broker_change_me}@rabbitmq:5672
       JWT_SECRET: ${JWT_SECRET:-local_jwt_secret_change_me_0123456789abcdef}
     depends_on:
@@ -152,7 +164,7 @@ services:
       dockerfile: services/notification-service/Dockerfile
     environment:
       PORT: 3004
-      DATABASE_URL: mysql://notification_app:local_notification_change_me@mysql:3306/notification_db
+      DATABASE_URL: mysql://notification_app:${NOTIFICATION_DB_PASSWORD:-local_notification_change_me}@mysql:3306/notification_db
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-studybalance}:${RABBITMQ_DEFAULT_PASS:-local_broker_change_me}@rabbitmq:5672
       JWT_SECRET: ${JWT_SECRET:-local_jwt_secret_change_me_0123456789abcdef}
     depends_on:
@@ -171,7 +183,7 @@ services:
       dockerfile: services/analytics-service/Dockerfile
     environment:
       PORT: 3005
-      DATABASE_URL: mysql://analytics_app:local_analytics_change_me@mysql:3306/analytics_db
+      DATABASE_URL: mysql://analytics_app:${ANALYTICS_DB_PASSWORD:-local_analytics_change_me}@mysql:3306/analytics_db
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-studybalance}:${RABBITMQ_DEFAULT_PASS:-local_broker_change_me}@rabbitmq:5672
       JWT_SECRET: ${JWT_SECRET:-local_jwt_secret_change_me_0123456789abcdef}
     depends_on:

@@ -8,3 +8,5 @@ coverage/
 .DS_Store
 backups/
 infrastructure/nginx/certs/
+infrastructure/nginx/acme/
+infrastructure/nginx/letsencrypt/

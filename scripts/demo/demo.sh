@@ -12,10 +12,14 @@ env_or() { local v; v=$(grep -E "^$1=" .env 2>/dev/null | tail -1 | cut -d= -f2-
 HTTPS_PORT=$(env_or GATEWAY_HTTPS_PORT 8443)
 HTTP_PORT=$(env_or GATEWAY_PORT 8080)
 GRAFANA_PORT=$(env_or GRAFANA_PORT 3030)
-export DEMO_BASE_URL="https://localhost:$HTTPS_PORT"
+# On a server with a real domain, set DEMO_BASE_URL=https://<domain> in .env.
+export DEMO_BASE_URL="${DEMO_BASE_URL:-$(env_or DEMO_BASE_URL "https://localhost:$HTTPS_PORT")}"
 export NODE_EXTRA_CA_CERTS=infrastructure/nginx/certs/tls.crt
 CA=infrastructure/nginx/certs/tls.crt
-APP="https://localhost:$HTTPS_PORT"
+APP="$DEMO_BASE_URL"
+# Locally the gateway certificate is self-signed; on a server it is trusted (Let's Encrypt).
+CURL_CA=""
+case "$APP" in https://localhost*) CURL_CA="--cacert $CA" ;; esac
 
 say()   { printf '\n\033[1;36m▶ %s\033[0m\n' "$*"; }
 talk()  { printf '\033[0;33m  Nói: %s\033[0m\n' "$*"; }
@@ -45,10 +49,13 @@ check() {
   for svc in mysql mysql-replica rabbitmq gateway prometheus grafana backup; do
     docker compose ps --status running --services | grep -qx "$svc" && pass "$svc đang chạy" || miss "$svc không chạy"
   done
-  curl -s --cacert "$CA" -o /dev/null -w '%{http_code}' "$APP/api/user/health" | grep -q 200 && pass "HTTPS gateway $APP" || miss "gateway HTTPS không trả lời"
+  curl -s $CURL_CA -o /dev/null -w '%{http_code}' "$APP/api/user/health" | grep -q 200 && pass "HTTPS gateway $APP" || miss "gateway HTTPS không trả lời"
   curl -s -o /dev/null -w '%{http_code}' "http://localhost:$HTTP_PORT/" | grep -q 308 && pass "HTTP :$HTTP_PORT chuyển hướng 308" || miss "HTTP không chuyển hướng"
-  security verify-cert -c "$CA" >/dev/null 2>&1 && pass "macOS đã tin cậy chứng chỉ (trình duyệt không cảnh báo)" \
-    || printf '  \033[33m!\033[0m trình duyệt sẽ cảnh báo chứng chỉ; tin cậy: sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain %s\n' "$CA"
+  # Only a local self-signed certificate needs trusting, and only macOS has `security`.
+  if [ -n "$CURL_CA" ] && command -v security >/dev/null; then
+    security verify-cert -c "$CA" >/dev/null 2>&1 && pass "macOS đã tin cậy chứng chỉ (trình duyệt không cảnh báo)" \
+      || printf '  \033[33m!\033[0m trình duyệt sẽ cảnh báo chứng chỉ; tin cậy: sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain %s\n' "$CA"
+  fi
   [ "$(replica_sql "SELECT COUNT(*) FROM performance_schema.replication_applier_status WHERE SERVICE_STATE='ON'")" = 1 ] && pass "replica MySQL đang chép" || miss "replica chưa chạy → docker compose run --rm replica-setup"
   local down; down=$(curl -s http://127.0.0.1:9090/api/v1/targets | grep -o '"health":"down"' | wc -l | tr -d ' ')
   [ "$down" = 0 ] && pass "Prometheus: mọi target up" || miss "Prometheus: $down target down"
@@ -73,7 +80,7 @@ ch2() {
   pause
   talk "Mỗi service có database và tài khoản MySQL riêng. task_app không đọc được database của user-service."
   run "docker compose exec -T mysql sh -c 'MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysql -uroot -t -e \"SELECT user AS tai_khoan, db AS duoc_phep FROM mysql.db WHERE db LIKE \\\"%\\\\_db\\\" ORDER BY db\"'"
-  run "docker compose exec -T mysql sh -c 'MYSQL_PWD=local_task_change_me mysql -utask_app -e \"SELECT COUNT(*) FROM user_db.users\"' 2>&1 | tail -1"
+  run "docker compose exec -T mysql sh -c 'MYSQL_PWD=\$TASK_DB_PASSWORD mysql -utask_app -e \"SELECT COUNT(*) FROM user_db.users\"' 2>&1 | tail -1"
   pause
   talk "Hướng sự kiện: mỗi consumer có queue riêng, chỉ đăng ký loại sự kiện nó cần (routing key)."
   run "docker compose exec -T rabbitmq rabbitmqctl list_bindings -q source_name destination_name routing_key 2>/dev/null | awk '\$1==\"studybalance.events\" {printf \"  %-30s ← %s\n\", \$2, \$3}' | sort"
@@ -163,12 +170,12 @@ ch8() {
   say "Chương 8 — Tính chịu lỗi"
   open_ "Prometheus http://localhost:9090/alerts và Grafana http://localhost:$GRAFANA_PORT"
   talk "Cân bằng tải: Nginx chia request cho 2 bản sao (header X-Served-By)."
-  run "for i in \$(seq 1 10); do curl -s --cacert $CA -D - -o /dev/null $APP/api/task/health | grep -i x-served-by; done | sort | uniq -c"
+  run "for i in \$(seq 1 10); do curl -s $CURL_CA -D - -o /dev/null $APP/api/task/health | grep -i x-served-by; done | sort | uniq -c"
   pause
   local victim; victim=$(first_container task-service)
   talk "Failover: dừng hẳn $victim — người dùng không thấy lỗi, Prometheus báo thiếu bản sao."
   run "docker stop $victim >/dev/null && echo '  đã dừng $victim'"
-  run "for i in \$(seq 1 20); do curl -s --cacert $CA -o /dev/null -w '%{http_code}\n' $APP/api/task/health; done | sort | uniq -c | sed 's/^/  /'"
+  run "for i in \$(seq 1 20); do curl -s $CURL_CA -o /dev/null -w '%{http_code}\n' $APP/api/task/health; done | sort | uniq -c | sed 's/^/  /'"
   printf '  Chờ cảnh báo (≈ 30–60 s)'
   for _ in $(seq 1 30); do alerts | grep -q 'ReplicasBelowDesired \[firing\]' && break; printf '.'; sleep 3; done; echo
   alerts | sed 's/^/  /'

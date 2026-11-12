@@ -4,6 +4,11 @@
 # Plain HTTP only redirects to HTTPS (308 keeps the method and body).
 server {
   listen 80;
+  # Let's Encrypt HTTP-01 challenges (production only; see scripts/deploy/server.sh).
+  location ^~ /.well-known/acme-challenge/ {
+    root /var/www/acme;
+    default_type text/plain;
+  }
   # Old OAuth redirect URIs (http://…:8088) still arrive here: never log their codes.
   location ~ ^/api/user/(integrations|auth)/google/callback$ {
     access_log off;

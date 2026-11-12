@@ -58,6 +58,10 @@ Container `backup` sao lưu cả năm database mỗi ngày vào `backups/` (gi�
 
 Dữ liệu giữ trong named volumes. MySQL init tạo năm database và năm tài khoản riêng khi volume trống; thay file init không cập nhật database đã tồn tại. Mật khẩu mẫu chỉ dành cho phát triển. Các cổng hạ tầng chỉ bind loopback cho dev; khi triển khai cần bỏ mapping và quản lý secrets riêng.
 
+## Deploy lên server
+
+Chạy nguyên hệ thống trên một VM ARM miễn phí của Oracle Cloud, HTTPS bằng Let's Encrypt, chỉ gateway mở ra Internet: xem [docs/deploy-oracle.md](docs/deploy-oracle.md) và `scripts/deploy/server.sh`.
+
 ## Cấu trúc
 
 ```text
