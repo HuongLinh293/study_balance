@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // End-to-end smoke test through the gateway against a running stack:
 //   docker compose up --build -d && npm run test:e2e
-// Env: E2E_BASE_URL (default http://localhost:8080), RABBITMQ_MGMT_URL,
+// Env: E2E_BASE_URL (default https://localhost:8443), RABBITMQ_MGMT_URL,
 //      RABBITMQ_DEFAULT_USER / RABBITMQ_DEFAULT_PASS for the duplicate-delivery check.
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-const BASE = process.env.E2E_BASE_URL ?? 'http://localhost:8080';
+const BASE = process.env.E2E_BASE_URL ?? 'https://localhost:8443';
 const MGMT = process.env.RABBITMQ_MGMT_URL ?? 'http://localhost:15672';
 const MGMT_AUTH = Buffer.from(
   `${process.env.RABBITMQ_DEFAULT_USER ?? 'studybalance'}:${process.env.RABBITMQ_DEFAULT_PASS ?? 'local_broker_change_me'}`,

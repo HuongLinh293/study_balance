@@ -43,7 +43,9 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-Mở http://localhost:8080, kiểm tra http://localhost:8080/api/user/health. Nếu cổng 8080 đã bị dùng, đặt `GATEWAY_PORT` khác trong `.env`. Compose chỉ đánh dấu service healthy khi `/ready` xác nhận được DB và broker. RabbitMQ Management: http://localhost:15672, tài khoản theo `.env`.
+Mở https://localhost:8443, kiểm tra https://localhost:8443/api/user/health. Cổng HTTP (`GATEWAY_PORT`, mặc định 8080) chỉ chuyển hướng sang HTTPS (`GATEWAY_HTTPS_PORT`, mặc định 8443); đổi trong `.env` nếu cổng đã bị dùng.
+
+**TLS:** lần đầu `docker compose up`, container `gateway-cert` tạo chứng chỉ tự ký cho `localhost`, `127.0.0.1`, `::1` trong `infrastructure/nginx/certs/` (không commit). Gateway chỉ nhận TLS 1.2/1.3, bật HTTP/2; cookie refresh có `Secure`. Trình duyệt sẽ cảnh báo chứng chỉ chưa tin cậy. Để bỏ cảnh báo: tin cậy file `tls.crt` (macOS: `sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain infrastructure/nginx/certs/tls.crt`), hoặc tạo chứng chỉ bằng `mkcert localhost 127.0.0.1 ::1`, đổi tên thành `tls.crt`/`tls.key` trong thư mục trên rồi `docker compose restart gateway`. Compose chỉ đánh dấu service healthy khi `/ready` xác nhận được DB và broker. RabbitMQ Management: http://localhost:15672, tài khoản theo `.env`.
 
 ```sh
 docker compose logs -f
@@ -90,7 +92,7 @@ npm run test:e2e          # luồng xuyên service qua gateway
 npm run test:outage       # tắt/bật RabbitMQ trong lúc ghi dữ liệu
 ```
 
-Đặt `E2E_BASE_URL` nếu gateway không ở http://localhost:8080. `test:e2e` dùng RabbitMQ Management (cổng 15672) để gửi một sự kiện hai lần, kiểm tra inbox chỉ xử lý một lần. `test:outage` gọi `docker compose stop/start rabbitmq`.
+Đặt `E2E_BASE_URL` nếu gateway không ở https://localhost:8443; hai lệnh test tự tin cậy chứng chỉ local qua `NODE_EXTRA_CA_CERTS`. `test:e2e` dùng RabbitMQ Management (cổng 15672) để gửi một sự kiện hai lần, kiểm tra inbox chỉ xử lý một lần. `test:outage` gọi `docker compose stop/start rabbitmq`.
 
 Chạy riêng: `npm run dev -w @studybalance/user-service` hoặc `npm run dev -w @studybalance/frontend` (cần build `packages/*` trước: `npm run build:packages`).
 

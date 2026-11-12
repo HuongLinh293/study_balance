@@ -37,10 +37,13 @@ Trong **Clients → Create client**:
 - Authorized redirect URIs, nhập đúng:
 
 ```text
-http://localhost:8088/api/user/integrations/google/callback
+https://localhost:8443/api/user/integrations/google/callback
+https://localhost:8443/api/user/auth/google/callback
 ```
 
-Đây là luồng OAuth backend, không cần Authorized JavaScript origins. Nếu đổi cổng/domain, cập nhật cả redirect URI trên Google và `APP_PUBLIC_URL`. Khi thử kết nối phải mở đúng `http://localhost:8088`, không đổi sang `127.0.0.1` giữa luồng vì cookie bảo vệ OAuth được gắn với host.
+Đây là luồng OAuth backend, không cần Authorized JavaScript origins. Nếu đổi cổng/domain, cập nhật cả redirect URI trên Google và `APP_PUBLIC_URL`. Khi thử kết nối phải mở đúng `https://localhost:8443`, không đổi sang `127.0.0.1` giữa luồng vì cookie bảo vệ OAuth được gắn với host.
+
+Cài đặt cũ dùng `http://localhost:8088` vẫn chạy: cổng HTTP chuyển hướng (308) sang HTTPS, giữ nguyên đường dẫn và query, nên callback cũ vẫn tới được user-service. Khi chuyển hẳn sang HTTPS, thêm hai URI ở trên vào Google rồi đổi `APP_PUBLIC_URL`.
 
 Lưu Client ID và Client Secret ở nơi riêng tư. Không đưa chúng vào frontend, ảnh chụp công khai, commit hoặc chat.
 
@@ -51,7 +54,7 @@ Mở `.env` ở thư mục gốc và điền:
 ```dotenv
 GOOGLE_CLIENT_ID=client-id-do-google-cap.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=client-secret-do-google-cap
-APP_PUBLIC_URL=http://localhost:8088
+APP_PUBLIC_URL=https://localhost:8443
 ```
 
 `GOOGLE_TOKEN_ENCRYPTION_KEY` đã được tạo ngẫu nhiên cho môi trường local trong lần triển khai tính năng. Giữ nguyên khóa này; đổi/mất khóa sẽ không đọc được refresh token đang lưu. File `.env` được bỏ qua khi commit và khi build Docker.
@@ -95,7 +98,7 @@ Nếu chạy bằng npm thay vì Docker, điền các biến trên vào `service
 - Kết nối/sync/ngắt kết nối được khóa theo user trong MySQL để tránh hai worker ghi đồng thời. Event ID được lưu trước khi gọi Google để retry không tạo bản sao.
 - Worker giao tiếp với planning/task qua API nội bộ và token của chính user, không đọc database service khác.
 - Danh sách lịch có phân trang; tối đa chọn 20 lịch. Khoảng bận giao nhau được gộp, sự kiện cả ngày và qua nửa đêm được tách theo ngày Việt Nam.
-- Chưa dùng webhook: không cần domain HTTPS công khai để thử local. Khi triển khai production dùng HTTPS, đặt `COOKIE_SECURE=true`, và cấu hình lại OAuth redirect URI.
+- Chưa dùng webhook: không cần domain HTTPS công khai để thử local. Gateway local đã dùng HTTPS với chứng chỉ tự ký và `COOKIE_SECURE=true` (xem README). Khi triển khai production, dùng chứng chỉ thật cho domain và cấu hình lại OAuth redirect URI.
 - Ở chế độ External/Testing, refresh token cho các scope Calendar thường hết hạn sau 7 ngày; kết nối lại khi app yêu cầu. Khi mở cho người dùng ngoài danh sách test, cần hoàn tất quy trình xuất bản/xác minh tương ứng của Google.
 - Chưa thể xác minh với tài khoản Google thật nếu chưa có OAuth Client và bước cấp quyền của chủ tài khoản.
 

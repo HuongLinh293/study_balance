@@ -3,7 +3,8 @@
 title Sơ đồ triển khai — Docker Compose trên một máy
 
 node "Máy chủ Docker" {
-  node "gateway\nnginx:stable-alpine\n127.0.0.1:8088" as gw
+  node "gateway\nnginx:stable-alpine\nHTTPS 127.0.0.1:8443\nHTTP :8088 → 308" as gw
+  node "gateway-cert\n(chạy một lần,\ntạo chứng chỉ tự ký)" as gc
   node "frontend\nnginx (bản build Vite)" as fe
 
   node "user-service :3001" as us
@@ -29,6 +30,7 @@ node "Máy chủ Docker" {
 }
 
 gw --> fe : /
+gc ..> gw : tls.crt, tls.key
 gw --> us
 gw --> ts1
 gw --> ts2

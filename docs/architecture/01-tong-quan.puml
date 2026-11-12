@@ -5,7 +5,7 @@ top to bottom direction
 
 actor "Sinh viên" as user
 rectangle "Trình duyệt\nReact + TanStack Query" as web
-component "API Gateway — Nginx :8088\n/api/<service>/* → service tương ứng" as gw
+component "API Gateway — Nginx\nHTTPS :8443 (TLS 1.2/1.3, HTTP/2), HTTP :8088 → 308\n/api/<service>/* → service tương ứng" as gw
 
 package "user-service" as P1 {
   component "tài khoản, JWT,\nlịch rảnh/bận, thiết lập,\nGoogle Calendar" as us
@@ -32,7 +32,7 @@ queue "RabbitMQ — exchange studybalance.events (topic)\nmỗi consumer một q
 cloud "Google Calendar API" as google
 
 user -down-> web
-web -down-> gw : HTTP/JSON, Bearer JWT\n(chưa bật TLS)
+web -down-> gw : HTTPS/JSON, Bearer JWT
 gw -down-> us
 gw -down-> ts
 gw -down-> ps

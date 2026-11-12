@@ -1,6 +1,6 @@
 # StudyBalance API
 
-Tất cả route đi qua gateway: `/api/<service>/…` (Nginx cổng `GATEWAY_PORT`, hoặc Vite proxy khi dev). Ví dụ `POST /api/task/tasks`.
+Tất cả route đi qua gateway: `/api/<service>/…` (Nginx HTTPS cổng `GATEWAY_HTTPS_PORT`, mặc định https://localhost:8443; cổng HTTP chỉ chuyển hướng. Khi dev dùng Vite proxy). Ví dụ `POST /api/task/tasks`.
 
 ## Quy ước chung
 

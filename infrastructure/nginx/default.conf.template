@@ -1,5 +1,26 @@
+# Rendered by the nginx image at start (envsubst): only defined environment
+# variables such as ${GATEWAY_HTTPS_PORT} are replaced; $host etc. stay nginx variables.
+
+# Plain HTTP only redirects to HTTPS (308 keeps the method and body).
 server {
   listen 80;
+  # Old OAuth redirect URIs (http://…:8088) still arrive here: never log their codes.
+  location ~ ^/api/user/(integrations|auth)/google/callback$ {
+    access_log off;
+    return 308 https://$host:${GATEWAY_HTTPS_PORT}$request_uri;
+  }
+  location / { return 308 https://$host:${GATEWAY_HTTPS_PORT}$request_uri; }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  ssl_certificate /etc/nginx/certs/tls.crt;
+  ssl_certificate_key /etc/nginx/certs/tls.key;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_session_cache shared:SSL:1m;
+  ssl_session_timeout 1h;
+  # No HSTS: on localhost it would force HTTPS on every other local app too.
   client_max_body_size 1m;
   # Docker's DNS, re-resolved every 10s: a recreated service container gets a new IP
   # and the gateway follows it without a restart (upstreams are variables below).

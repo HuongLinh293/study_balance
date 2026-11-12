@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 
-const BASE = process.env.E2E_BASE_URL ?? 'http://localhost:8080';
+const BASE = process.env.E2E_BASE_URL ?? 'https://localhost:8443';
 const compose = (...args) => execFileSync('docker', ['compose', ...args], { stdio: 'pipe' }).toString();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const call = async (method, path, token, body) => {
