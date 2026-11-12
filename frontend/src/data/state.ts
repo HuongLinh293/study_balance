@@ -96,6 +96,20 @@ export const noSubject: Subject = {
 };
 export const subjectFor = (subjects: Subject[], id: string) =>
   subjects.find((s) => s.id === id) ?? noSubject;
+/**
+ * Minutes per subject, largest first. Rows of deleted subjects resolve to
+ * "Chưa phân môn" and are merged into one row instead of repeating it.
+ */
+export function minutesBySubject(rows: { subjectId: string | null; minutes: number }[], subjects: Subject[]) {
+  const totals = new Map<string, { subject: Subject; minutes: number }>();
+  for (const row of rows) {
+    const subject = row.subjectId ? subjectFor(subjects, row.subjectId) : noSubject;
+    const entry = totals.get(subject.id) ?? { subject, minutes: 0 };
+    entry.minutes += row.minutes;
+    totals.set(subject.id, entry);
+  }
+  return [...totals.values()].sort((a, b) => b.minutes - a.minutes);
+}
 export const time = (minutes: number) =>
   `${Math.floor(minutes / 60)
     .toString()

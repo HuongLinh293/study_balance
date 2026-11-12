@@ -200,6 +200,12 @@ await step('notification service creates and clears deadline reminders', async (
     const n = await alice.ok('GET', '/api/notification/notifications');
     assert.ok(n.items.some((i) => i.taskId === ids.urgent && i.kind === 'deadline'), 'reminder present');
   });
+  // An unread reminder follows the data: logging progress changes "Còn … cần thực hiện".
+  const reminderBody = async () =>
+    (await alice.ok('GET', '/api/notification/notifications')).items.find((i) => i.taskId === ids.urgent).body;
+  const before = await reminderBody();
+  await alice.ok('PATCH', `/api/task/tasks/${ids.urgent}/progress`, { minutes: 10 });
+  await eventually(async () => assert.notEqual(await reminderBody(), before, 'reminder text refreshed'));
   await alice.ok('POST', '/api/notification/notifications/read-all');
   assert.equal((await alice.ok('GET', '/api/notification/notifications')).unreadCount, 0);
   const t = await alice.ok('GET', `/api/task/tasks/${ids.urgent}`);

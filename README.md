@@ -52,7 +52,7 @@ docker compose logs -f
 docker compose down
 ```
 
-Container `backup` sao lưu cả năm database mỗi ngày vào `backups/` (giữ 7 lượt). Sao lưu ngay: `npm run backup:now`; khôi phục: `npm run backup:restore`. task-service và planning-service chạy 2 bản sao sau Nginx; mọi container tự khởi động lại khi lỗi. Prometheus (http://localhost:9090) thu metrics và cảnh báo, Grafana (http://localhost:3030) có dashboard tổng quan. Xem [chịu lỗi và giám sát](docs/fault-tolerance.md).
+Container `backup` sao lưu cả năm database mỗi ngày vào `backups/` (giữ 7 lượt). Sao lưu ngay: `npm run backup:now`; khôi phục: `npm run backup:restore`. task-service và planning-service chạy 2 bản sao sau Nginx; mọi container tự khởi động lại khi lỗi. Prometheus (http://localhost:9090) thu metrics và cảnh báo, Grafana (http://localhost:3030) có dashboard tổng quan. Xem [chịu lỗi và giám sát](docs/fault-tolerance.md). Thuật toán lập kế hoạch chạy trong `worker_threads` để không chặn event loop; tổng hợp tiến trình, luồng, lập lịch và tác vụ nền: [docs/processes-threads.md](docs/processes-threads.md).
 
 `mysql-replica` là bản sao chỉ đọc của MySQL, đồng bộ liên tục qua GTID replication (`npm run replica:status`). Xem [sao lưu, khôi phục và replica](docs/backup.md).
 
@@ -75,6 +75,16 @@ docs/                   architecture, api, test-results
 ```
 
 Mỗi service có `src/app.ts`, `src/index.ts`, `src/migrations.ts`, `src/modules/`, `tests/`, `.env.example` và Dockerfile riêng, cùng database riêng. Không service nào đọc database của service khác. `packages/service-kit` chỉ chứa tiện ích hạ tầng dùng chung (HTTP, JWT, MySQL/migration, outbox/inbox, broker), không chứa model nghiệp vụ.
+
+## Demo bảo vệ
+
+```sh
+npm run demo -- seed      # tài khoản demo@studybalance.dev / StudyBalance2026 với dữ liệu mẫu
+npm run demo -- check     # kiểm tra mọi thứ sẵn sàng
+npm run demo              # chạy từng chương của bảng chấm (hoặc: npm run demo -- ch2 … ch8)
+```
+
+Kịch bản thuyết trình, demo và câu hỏi thường gặp: [docs/reports/kich-ban-thuyet-trinh-demo.md](docs/reports/kich-ban-thuyet-trinh-demo.md).
 
 ## Kiểm tra
 

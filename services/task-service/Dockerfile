@@ -9,7 +9,9 @@ COPY services/notification-service/package.json services/notification-service/pa
 COPY services/analytics-service/package.json services/analytics-service/package.json
 COPY packages/event-contracts/package.json packages/event-contracts/package.json
 COPY packages/service-kit/package.json packages/service-kit/package.json
-RUN npm ci
+# npm cache survives between builds (BuildKit cache mount) and downloads retry,
+# so a flaky connection resumes instead of starting over.
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund --prefer-offline --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
 COPY tsconfig.base.json ./
 COPY packages packages
 COPY services/task-service services/task-service

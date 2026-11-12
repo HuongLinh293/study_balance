@@ -60,6 +60,8 @@ Refresh token là chuỗi ngẫu nhiên 32 byte, chỉ lưu SHA-256. Cookie `Htt
 
 Quy tắc xếp phiên (422): `TASK_DONE`, `INVALID_DURATION` (≥5 phút, không vượt phần chưa xếp), `PAST_DATE`, `PAST_TIME`, `AFTER_DEADLINE`, `BUSY_PERIOD`, `OUTSIDE_AVAILABILITY` (phiên phải nằm trọn trong một khung giờ học của ngày đó), `DAILY_LIMIT`, `OVERLAP` (tính cả thời gian nghỉ giữa phiên). Nếu Planning chưa nhận `TaskCreated` thì trả 409 `TASK_NOT_SYNCED`; client thử lại sau.
 
+`POST /plans/generate` và `POST /simulations` chạy thuật toán trong worker thread. Khi mọi worker bận và hàng đợi đầy: 503 `PLANNER_BUSY`; một lần tính quá 10 s: 503 `PLANNER_TIMEOUT`. Cả hai nên thử lại sau.
+
 Ba chức năng kiểm tra phiên, đề xuất và mô phỏng dùng chung một bộ máy xếp chỗ (`services/planning-service/src/modules/sessions/rules.ts`). Khoảng trống được tính bằng: khung giờ học của thứ đó, trừ lịch bận, trừ phần giờ đã qua của hôm nay, trừ các phiên đã có (cộng thêm thời gian nghỉ hai bên); sau đó giới hạn theo số phút tối đa mỗi ngày.
 
 - **Đề xuất:** việc có deadline sớm hơn được xếp trước (ưu tiên cao khi trùng hạn). Mỗi phiên dài bằng "phiên tập trung" trong Cài đặt, phiên ngắn nhất 15 phút. Lượt 1 cho mỗi việc tối đa 2 phiên/ngày để rải đều; lượt 2 lấp phần còn thiếu. Không xếp quá lịch rảnh: phần không vừa trước deadline được trả về trong `shortfalls`.

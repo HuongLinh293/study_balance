@@ -1,5 +1,8 @@
 import { Counter, Gauge, Histogram, Registry, collectDefaultMetrics } from 'prom-client';
 
+/** Services declare their own metrics with these, registered on `metrics`. */
+export { Counter, Gauge, Histogram };
+
 /**
  * One Prometheus registry per process. Every series carries `service`; the
  * scrape adds `instance`, so replicas of the same service stay distinct.

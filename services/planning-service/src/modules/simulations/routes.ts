@@ -17,7 +17,8 @@ import {
   type Db,
   type Pool,
 } from '@studybalance/service-kit';
-import { simulateBusy, type Slot } from '../sessions/rules.js';
+import type { Slot } from '../sessions/rules.js';
+import { planner } from '../planner/index.js';
 import { SERVICE, emitSession, findSession, loadContext, loadPrefs, loadTasks, lockUser } from '../sessions/repository.js';
 import { fingerprint, isExpired, sameBasis } from '../proposals.js';
 
@@ -90,7 +91,7 @@ export function simulationsRouter(pool: Pool) {
     const ctx = await loadContext(pool, userId, prefs);
     const tasks = await loadTasks(pool, userId, [...new Set(ctx.sessions.map((s) => s.taskId))]);
     const basis = await fingerprint(pool, userId, today, ctx.versions, false);
-    const result: Result = { busy, ...simulateBusy(ctx, busy, tasks) };
+    const result: Result = { busy, ...(await planner.simulate(ctx, busy, tasks)) };
     const id = randomUUID();
     await exec(pool, 'INSERT INTO simulations (id, user_id, scenario, date, result, basis) VALUES (?, ?, ?, ?, ?, ?)', [
       id,

@@ -5,8 +5,8 @@ import { remindersFor, type ReminderTask } from './rules.js';
 
 /**
  * Brings one user's reminders in line with the current projections: inserts
- * missing ones (INSERT IGNORE on the dedupe key) and removes unread reminders
- * that no longer apply (task done, deleted, deadline moved, plan emptied).
+ * missing ones (unique dedupe key), refreshes the text of unread ones, and removes
+ * unread reminders that no longer apply (task done, deleted, deadline moved, plan emptied).
  * Open streams of the user are told once the change is committed.
  */
 export async function syncReminders(db: Db, userId: string, now = new Date()) {
@@ -42,13 +42,35 @@ export async function syncReminders(db: Db, userId: string, now = new Date()) {
     desired.length ? [userId, desired.map((r) => r.dedupeKey)] : [userId],
   );
   let changed = removed.affectedRows > 0;
+  // Unread reminders follow the data (e.g. "Còn 1h" after a session was logged);
+  // read ones stay as the user saw them.
+  const existing = new Map(
+    (
+      await rows<{ dedupe_key: string; title: string; body: string; read_at: string | null }>(
+        db,
+        'SELECT dedupe_key, title, body, read_at FROM notifications WHERE user_id = ?',
+        [userId],
+      )
+    ).map((n) => [n.dedupe_key, n]),
+  );
   for (const r of desired) {
-    const inserted = await exec(
-      db,
-      'INSERT IGNORE INTO notifications (id, user_id, kind, dedupe_key, task_id, title, body) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [randomUUID(), userId, r.kind, r.dedupeKey, r.taskId, r.title, r.body],
-    );
-    if (inserted.affectedRows) changed = true;
+    const current = existing.get(r.dedupeKey);
+    if (!current) {
+      const inserted = await exec(
+        db,
+        'INSERT IGNORE INTO notifications (id, user_id, kind, dedupe_key, task_id, title, body) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [randomUUID(), userId, r.kind, r.dedupeKey, r.taskId, r.title, r.body],
+      );
+      if (inserted.affectedRows) changed = true;
+    } else if (current.read_at === null && (current.title !== r.title || current.body !== r.body)) {
+      await exec(db, 'UPDATE notifications SET title = ?, body = ? WHERE user_id = ? AND dedupe_key = ? AND read_at IS NULL', [
+        r.title,
+        r.body,
+        userId,
+        r.dedupeKey,
+      ]);
+      changed = true;
+    }
   }
   if (changed) afterCommit(db, () => hub.publish(userId));
   return changed;

@@ -45,7 +45,7 @@ for db in $dbs; do
 done
 if ((${#stopped[@]})); then
   echo "Stopping ${stopped[*]}..."
-  docker compose stop "${stopped[@]}"
+  docker compose stop "${stopped[@]}" 2>/dev/null
 fi
 
 for db in $dbs; do
@@ -56,6 +56,6 @@ done
 
 if ((${#stopped[@]})); then
   echo "Starting ${stopped[*]}..."
-  docker compose start "${stopped[@]}"
+  docker compose start "${stopped[@]}" 2>/dev/null
 fi
 echo "Restored [$dbs] from $round."

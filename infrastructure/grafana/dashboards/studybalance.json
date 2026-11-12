@@ -640,6 +640,81 @@
     "overrides": []
    },
    "options": {}
+  },
+  {
+   "id": 18,
+   "title": "Planner (worker threads)",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 39,
+    "w": 12,
+    "h": 7
+   },
+   "description": "Job đề xuất/mô phỏng mỗi giây theo kết quả, và số job đang chạy/chờ.",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (kind, outcome) (rate(studybalance_planner_jobs_total[1m]))",
+     "legendFormat": "{{kind}} {{outcome}}"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (state) (studybalance_planner_queue)",
+     "legendFormat": "{{state}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 19,
+   "title": "Event loop lag (p99)",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 46,
+    "w": 24,
+    "h": 7
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "Độ trễ event loop của từng bản sao. Planner chạy trong worker nên planning-service không bị chặn khi tính kế hoạch lớn.",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "nodejs_eventloop_lag_p99_seconds{job=\"services\"}",
+     "legendFormat": "{{app}} {{instance}}"
+    }
+   ]
   }
  ]
 }

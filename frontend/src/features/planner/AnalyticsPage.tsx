@@ -10,8 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Heading, SectionTitle } from "../../components/Shared";
 import {
   duration,
-  noSubject,
-  subjectFor,
+  minutesBySubject,
   type AppState,
 } from "../../data/state";
 import { messageFor } from "../../lib/api";
@@ -37,10 +36,7 @@ export function AnalyticsPage({ state }: { state: AppState }) {
   const total = values.reduce((a, b) => a + b, 0);
   const completed = data.completedTasks;
   const streak = data.streak;
-  const plannedBySubject = data.bySubject.map((row) => ({
-    subject: row.subjectId ? subjectFor(state.subjects, row.subjectId) : noSubject,
-    minutes: row.minutes,
-  }));
+  const plannedBySubject = minutesBySubject(data.bySubject, state.subjects);
   const maxPlanned = Math.max(1, ...plannedBySubject.map((p) => p.minutes));
   const top = plannedBySubject[0];
   return (

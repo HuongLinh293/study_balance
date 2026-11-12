@@ -144,8 +144,12 @@ export class Broker {
     const handler = spec.handlers[event.eventType as EventType] as EventHandler | undefined;
     try {
       if (handler) {
+        const started = performance.now();
         const outcome = await processOnce(spec.pool, event, handler);
-        if (outcome === 'duplicate') this.log.info('event_duplicate_skipped', { eventId: event.eventId, eventType: event.eventType });
+        // correlationId links this to the HTTP request that caused it, across services.
+        const fields = { eventId: event.eventId, eventType: event.eventType, correlationId: event.correlationId };
+        if (outcome === 'duplicate') this.log.info('event_duplicate_skipped', fields);
+        else this.log.info('event_processed', { ...fields, ms: Math.round(performance.now() - started) });
         eventsConsumed.inc({ event_type: event.eventType, outcome });
       } else {
         eventsConsumed.inc({ event_type: event.eventType, outcome: 'ignored' });

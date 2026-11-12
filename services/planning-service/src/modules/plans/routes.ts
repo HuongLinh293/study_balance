@@ -14,7 +14,8 @@ import {
   type Db,
   type Pool,
 } from '@studybalance/service-kit';
-import { generatePlan, type Slot } from '../sessions/rules.js';
+import type { Slot } from '../sessions/rules.js';
+import { planner } from '../planner/index.js';
 import { SERVICE, emitSession, findSession, loadContext, loadPrefs, lockUser, openTasks } from '../sessions/repository.js';
 import { fingerprint, isExpired, sameBasis } from '../proposals.js';
 
@@ -69,7 +70,8 @@ export function plansRouter(pool: Pool) {
     const ctx = await loadContext(pool, userId, prefs);
     const tasks = await openTasks(pool, userId, prefs.now.date);
     const basis = await fingerprint(pool, userId, prefs.now.date, ctx.versions, true);
-    const result: Result = generatePlan(ctx, tasks);
+    // CPU-heavy for many tasks: runs in a worker thread, the event loop stays free.
+    const result: Result = await planner.generate(ctx, tasks);
     const id = randomUUID();
     await exec(pool, 'INSERT INTO plan_proposals (id, user_id, date, result, basis) VALUES (?, ?, ?, ?, ?)', [
       id,

@@ -87,6 +87,15 @@ const toTask = (t: ApiTask): Task => ({
   steps: t.steps,
   version: t.version,
 });
+/**
+ * Finished sessions are kept as history when their task is deleted, and a session
+ * can arrive before the task list refetches. Views look every session's task up,
+ * so only sessions whose task is loaded are shown (statistics come from the server).
+ */
+export const sessionsWithTask = <S extends { taskId: string }>(sessions: S[], tasks: { id: string }[]) => {
+  const known = new Set(tasks.map((t) => t.id));
+  return sessions.filter((s) => known.has(s.taskId));
+};
 const toSession = (s: ApiSession): Session => ({
   id: s.id,
   taskId: s.taskId,
@@ -185,7 +194,7 @@ export function useStudyData() {
       availability: availability.data,
       subjects: subjects.data,
       tasks: tasks.data.map(toTask),
-      sessions: sessions.data.map(toSession),
+      sessions: sessionsWithTask(sessions.data, tasks.data).map(toSession),
       preferences: toPreferences(me.data),
       note: me.data.note,
     };
