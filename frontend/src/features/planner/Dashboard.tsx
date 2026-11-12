@@ -14,6 +14,7 @@ import {
   PencilSimple,
   Flower,
   StarFour,
+  Lifebuoy,
 } from "@phosphor-icons/react";
 import {
   AddButton,
@@ -39,6 +40,7 @@ import {
   toISODate,
   todayISO,
 } from "../../data/dates";
+import { isMissed } from "../../data/schedule";
 
 interface Props {
   state: AppState;
@@ -48,6 +50,12 @@ interface Props {
   onToggle: (id: string) => void;
   onFocus: (session: Session) => void;
   onNote: (text: string) => void;
+  /** Record a missed session that was in fact studied. */
+  onLogMissed: (session: Session) => void;
+  /** Take a missed session off the calendar. */
+  onSkipMissed: (id: string) => void;
+  /** Clear the listed missed sessions, then propose a new plan for the remaining work. */
+  onRescue: (missedIds: string[]) => void;
 }
 export function Dashboard({
   state,
@@ -57,6 +65,9 @@ export function Dashboard({
   onToggle,
   onFocus,
   onNote,
+  onLogMissed,
+  onSkipMissed,
+  onRescue,
 }: Props) {
   const [tab, setTab] = useState("important");
   const [editingNote, setEditingNote] = useState(false);
@@ -113,6 +124,14 @@ export function Dashboard({
             </span>
             <span className="small-label">MỘT CHÚT TẬP TRUNG, MỖI NGÀY</span>
           </div>
+          <RescueCard
+            state={state}
+            today={today}
+            onTask={onTask}
+            onLog={onLogMissed}
+            onSkip={onSkipMissed}
+            onRescue={onRescue}
+          />
           <div className="overview-grid">
             <section className="focus-card pink">
               <div className="card-kicker">
@@ -441,7 +460,7 @@ export function Dashboard({
               const subject = subjectFor(state.subjects, task.subject);
               return (
                 <div
-                  className={`timeline-row ${s.done || task.done ? "completed" : ""}`}
+                  className={`timeline-row ${s.done || task.done ? "completed" : ""} ${!task.done && isMissed(s, today) ? "missed" : ""}`}
                   key={s.id}
                 >
                   <span className="timeline-time">{time(s.start)}</span>
@@ -457,6 +476,8 @@ export function Dashboard({
                         <span className="event-state">
                           {s.done ? "Phiên đã học" : "Công việc đã xong"}
                         </span>
+                      ) : isMissed(s, today) ? (
+                        <span className="event-state">Bỏ lỡ</span>
                       ) : s.id === next?.id ? (
                         <span className="event-state">Tiếp theo</span>
                       ) : null}
@@ -498,6 +519,106 @@ export function Dashboard({
         </aside>
       </div>
     </>
+  );
+}
+/** Missed sessions are only offered for rescue this many days back. */
+const RESCUE_DAYS = 14;
+/**
+ * "Cứu kế hoạch" (spec FR12): planned sessions that were missed and open tasks
+ * past their deadline. Nothing changes until the user picks an action; deadlines
+ * are never moved and no time outside the study windows is added automatically.
+ */
+function RescueCard({
+  state,
+  today,
+  onTask,
+  onLog,
+  onSkip,
+  onRescue,
+}: {
+  state: AppState;
+  today: string;
+  onTask: (task: Task) => void;
+  onLog: (session: Session) => void;
+  onSkip: (id: string) => void;
+  onRescue: (missedIds: string[]) => void;
+}) {
+  const taskOf = (id: string) => state.tasks.find((t) => t.id === id);
+  const missed = state.sessions
+    .filter(
+      (s) =>
+        isMissed(s, today) &&
+        s.date >= addDays(today, -RESCUE_DAYS) &&
+        taskOf(s.taskId)?.done === false,
+    )
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
+  const overdue = state.tasks.filter((t) => !t.done && t.due < today);
+  if (!missed.length && !overdue.length) return null;
+  const missedMinutes = missed.reduce((n, s) => n + s.minutes, 0);
+  return (
+    <section className="rescue-card" aria-labelledby="rescue-title">
+      <div className="rescue-head">
+        <span className="round-icon yellow">
+          <Lifebuoy size={20} />
+        </span>
+        <div>
+          <h3 id="rescue-title">Cứu kế hoạch</h3>
+          <p>
+            {missed.length > 0 &&
+              `${missed.length} phiên đã lỡ (${duration(missedMinutes)}) không còn giữ chỗ trong lịch. `}
+            {overdue.length > 0 && `${overdue.length} công việc đã quá hạn. `}
+            Chọn cách xử lý, hệ thống không tự dời deadline.
+          </p>
+        </div>
+      </div>
+      <ul className="rescue-list">
+        {missed.slice(0, 5).map((s) => (
+          <li key={s.id}>
+            <span>
+              <strong>{taskOf(s.taskId)!.title}</strong>
+              <small>
+                {shortDate(s.date)} · {time(s.start)} · {duration(s.minutes)}
+              </small>
+            </span>
+            <span className="rescue-actions">
+              <button className="text-button" onClick={() => onLog(s)}>
+                Tôi đã học
+              </button>
+              <button className="text-button" onClick={() => onSkip(s.id)}>
+                Bỏ qua
+              </button>
+            </span>
+          </li>
+        ))}
+        {missed.length > 5 && (
+          <li className="rescue-more">và {missed.length - 5} phiên khác</li>
+        )}
+        {overdue.slice(0, 3).map((t) => (
+          <li key={t.id} className="overdue">
+            <span>
+              <strong>{t.title}</strong>
+              <small>
+                Quá hạn {shortDate(t.due)} · còn {duration(t.minutes)}
+              </small>
+            </span>
+            <span className="rescue-actions">
+              <button className="text-button" onClick={() => onTask(t)}>
+                Dời hạn hoặc đánh dấu xong
+              </button>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {missed.length > 0 && (
+        <button
+          className="button dark"
+          onClick={() => onRescue(missed.map((s) => s.id))}
+        >
+          Xếp lại phần đã lỡ
+          <ArrowRight size={16} />
+        </button>
+      )}
+    </section>
   );
 }
 function BookIcon({ index }: { index: number }) {

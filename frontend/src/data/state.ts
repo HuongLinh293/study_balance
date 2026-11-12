@@ -34,6 +34,8 @@ export interface Task {
   done: boolean;
   note: string;
   steps: string[];
+  /** Same order as `steps`. */
+  stepsDone: boolean[];
   version: number;
 }
 export interface Session {

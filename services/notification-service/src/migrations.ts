@@ -53,4 +53,9 @@ export const migrations = [
     )`,
   },
   { name: '005_inbox', sql: inboxMigration },
+  {
+    name: '006_session_times',
+    sql: 'ALTER TABLE session_projection ADD COLUMN task_id CHAR(36) NULL, ADD COLUMN start_minute INT NULL, ADD COLUMN minutes INT NULL',
+  },
+  { name: '007_session_reminders', sql: "ALTER TABLE notifications MODIFY kind ENUM('deadline','plan','session') NOT NULL" },
 ];

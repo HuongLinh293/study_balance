@@ -39,7 +39,8 @@ Refresh token là chuỗi ngẫu nhiên 32 byte, chỉ lưu SHA-256. Cookie `Htt
 | PATCH / DELETE | `/subjects/:id` | Xóa môn: công việc của môn chuyển sang `subjectId: null` (phát `TaskUpdated`) |
 | GET | `/tasks?status=open\|done\|all&limit&offset` | `{items, nextOffset}` |
 | POST | `/tasks` | `{id?, title, subjectId?, dueDate, remainingMinutes, priority?, note?, steps?: string[]}` |
-| GET / PATCH / DELETE | `/tasks/:id` | Task: `{id, title, subjectId, dueDate, remainingMinutes, priority, done, note, steps, version}` |
+| GET / PATCH / DELETE | `/tasks/:id` | Task: `{id, title, subjectId, dueDate, remainingMinutes, priority, done, note, steps, stepsDone, version}`. Sửa `steps` giữ trạng thái xong của bước cùng tên |
+| PATCH | `/tasks/:id/steps/:index` | `{done, version?}` → Task. Tick/bỏ tick một bước nhỏ; không tự đổi thời lượng còn lại |
 | PATCH | `/tasks/:id/progress` | `{minutes, sessionId?}` → `{task, applied}`. Mỗi `sessionId` chỉ trừ một lần |
 | GET | `/tasks/:id/progress` | `{items: [{sessionId, minutes, createdAt}]}`. Giao diện dùng để biết phiên đã học nào chưa trừ vào thời lượng |
 
@@ -55,7 +56,7 @@ Refresh token là chuỗi ngẫu nhiên 32 byte, chỉ lưu SHA-256. Cookie `Htt
 | POST | `/simulations` | `{scenario: afternoon\|whole}` (hôm nay) hoặc `{date, startMinute, endMinute, label?}` (đến 30 ngày tới) → `{id, busy, changed, moved, unscheduled: [{…, reason: deadline\|no_time}], feasible, status}`; không đổi lịch |
 | GET | `/simulations/:id` | |
 | POST | `/simulations/:id/apply` | `{dropUnscheduled?}`. 409 `SIMULATION_STALE` nếu phiên, thiết lập hoặc lịch rảnh đã đổi, đã sang ngày khác hoặc preview quá 30 phút; 422 `SIMULATION_INFEASIBLE` nếu còn phiên chưa xếp được mà không chọn `dropUnscheduled` (phiên bị bỏ trả thời lượng về mục chưa xếp). Client tự lưu khoảng bận qua `POST /me/busy-periods` *sau khi* áp dụng |
-| POST | `/plans/generate` | `{taskIds?}` → `{id, today, proposed, shortfalls: [{taskId, dueDate, neededMinutes, missingMinutes}], neededMinutes, placedMinutes}`; không đổi lịch. Nếu có `taskIds` mà Planning chưa nhận đủ thì trả `TASK_NOT_SYNCED` |
+| POST | `/plans/generate` | `{taskIds?}` → `{id, today, proposed, shortfalls: [{taskId, dueDate, neededMinutes, missingMinutes}], neededMinutes, placedMinutes}`; không đổi lịch. Phiên `planned` ở ngày đã qua (bị lỡ) không còn giữ chỗ nên phần việc đó được xếp lại; ưu tiên xong trước deadline 1 ngày nếu không làm thiếu thêm giờ. Nếu có `taskIds` mà Planning chưa nhận đủ thì trả `TASK_NOT_SYNCED` |
 | POST | `/plans/:id/apply` | 409 `PLAN_STALE` nếu công việc, phiên, thiết lập hoặc lịch rảnh đã đổi sau khi đề xuất |
 
 Quy tắc xếp phiên (422): `TASK_DONE`, `INVALID_DURATION` (≥5 phút, không vượt phần chưa xếp), `PAST_DATE`, `PAST_TIME`, `AFTER_DEADLINE`, `BUSY_PERIOD`, `OUTSIDE_AVAILABILITY` (phiên phải nằm trọn trong một khung giờ học của ngày đó), `DAILY_LIMIT`, `OVERLAP` (tính cả thời gian nghỉ giữa phiên). Nếu Planning chưa nhận `TaskCreated` thì trả 409 `TASK_NOT_SYNCED`; client thử lại sau.
@@ -71,7 +72,7 @@ Ba chức năng kiểm tra phiên, đề xuất và mô phỏng dùng chung mộ
 
 | Method | Path | Ghi chú |
 |---|---|---|
-| GET | `/notifications?limit` | `{items: [{id, kind: deadline\|plan, taskId, title, body, createdAt, read}], unreadCount}` |
+| GET | `/notifications?limit` | `{items: [{id, kind: deadline\|plan\|session, taskId, title, body, createdAt, read}], unreadCount}`. `session`: hiện từ 15 phút trước đến hết phiên học |
 | PATCH | `/notifications/:id/read` | |
 | POST | `/notifications/read-all` | |
 | GET | `/notifications/stream` | Server-Sent Events (`text/event-stream`). Gửi `event: ready` khi mở, `event: notifications` mỗi khi danh sách của người dùng đổi (lời nhắc mới/bị gỡ, đánh dấu đã đọc), `: ping` mỗi 25 s. Sự kiện không kèm dữ liệu: client gọi lại `GET /notifications`. Stream đóng khi access token hết hạn; client mở lại với token mới. Tối đa 5 stream mỗi người dùng |
@@ -82,7 +83,7 @@ Lời nhắc sinh từ projection: việc quá hạn, đến hạn hôm nay ho�
 
 | Method | Path | Ghi chú |
 |---|---|---|
-| GET | `/analytics/summary?period=week\|month&date?` | `{labels, values, current, totalMinutes, streak, completedTasks, totalTasks, bySubject: [{subjectId, minutes}]}` |
+| GET | `/analytics/summary?period=week\|month&date?` | `{labels, values, current, totalMinutes, streak, completedTasks, totalTasks, bySubject: [{subjectId, minutes}], estimate: {sessions, plannedMinutes, actualMinutes, ratio}, deadlines: {finished, onTime, overdue}}` |
 
 Chỉ tính số phút thực tế từ `StudySessionCompleted`; không đọc database của service khác.
 

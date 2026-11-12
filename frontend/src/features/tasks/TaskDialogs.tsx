@@ -71,6 +71,7 @@ export function TaskForm({
             note,
             done: task?.done ?? false,
             steps: task?.steps ?? [],
+            stepsDone: task?.stepsDone ?? [],
             version: task?.version ?? 1,
           }));
         }}
@@ -173,6 +174,7 @@ export function TaskDetail({
   onToggle,
   onDelete,
   onApplyProgress,
+  onToggleStep,
 }: {
   task: Task;
   subjects: Subject[];
@@ -184,6 +186,7 @@ export function TaskDetail({
   onToggle: () => void;
   onDelete: () => void;
   onApplyProgress: (session: Session) => void;
+  onToggleStep: (index: number, done: boolean) => void;
 }) {
   const subject = subjectFor(subjects, task.subject);
   const [confirming, setConfirming] = useState(false);
@@ -239,10 +242,24 @@ export function TaskDetail({
       </p>
       {task.steps.length > 0 && (
         <>
-          <h4>Các bước nhỏ</h4>
+          <h4>
+            Các bước nhỏ{" "}
+            <small>
+              {task.stepsDone.filter(Boolean).length}/{task.steps.length} xong
+            </small>
+          </h4>
           <ol className="step-list">
-            {task.steps.map((s) => (
-              <li key={s}>{s}</li>
+            {task.steps.map((s, i) => (
+              <li key={`${i}-${s}`} className={task.stepsDone[i] ? "done" : ""}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={task.stepsDone[i] ?? false}
+                    onChange={(e) => onToggleStep(i, e.target.checked)}
+                  />
+                  <span>{s}</span>
+                </label>
+              </li>
             ))}
           </ol>
         </>

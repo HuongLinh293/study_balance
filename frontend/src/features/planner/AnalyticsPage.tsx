@@ -5,6 +5,8 @@ import {
   CheckCircle,
   Plant,
   Sparkle,
+  Scales,
+  Flag,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Heading, SectionTitle } from "../../components/Shared";
@@ -23,6 +25,13 @@ const EMPTY = {
   completedTasks: 0,
   totalTasks: 0,
   bySubject: [],
+  estimate: { sessions: 0, plannedMinutes: 0, actualMinutes: 0, ratio: null as number | null },
+  deadlines: { finished: 0, onTime: 0, overdue: 0 },
+};
+/** "+20%" when sessions ran longer than planned, "−10%" when shorter. */
+const deviation = (ratio: number) => {
+  const pct = Math.round((ratio - 1) * 100);
+  return pct === 0 ? "Đúng dự kiến" : `${pct > 0 ? "+" : "−"}${Math.abs(pct)}%`;
 };
 export function AnalyticsPage({ state }: { state: AppState }) {
   const [period, setPeriod] = useState<"week" | "month">("week");
@@ -39,6 +48,12 @@ export function AnalyticsPage({ state }: { state: AppState }) {
   const plannedBySubject = minutesBySubject(data.bySubject, state.subjects);
   const maxPlanned = Math.max(1, ...plannedBySubject.map((p) => p.minutes));
   const top = plannedBySubject[0];
+  const { estimate, deadlines } = data;
+  const onTimeRate = deadlines.finished ? Math.round((deadlines.onTime / deadlines.finished) * 100) : null;
+  // Spec P1 "ước lượng sát hơn": suggest a margin once sessions consistently run long.
+  const margin = estimate.ratio !== null && estimate.sessions >= 3 && estimate.ratio >= 1.1
+    ? Math.round((estimate.ratio - 1) * 100)
+    : null;
   return (
     <>
       <Heading
@@ -88,6 +103,29 @@ export function AnalyticsPage({ state }: { state: AppState }) {
           </strong>
           <small>
             {streak ? "Chuỗi ngày học liên tiếp" : "Học một phiên để bắt đầu chuỗi"}
+          </small>
+        </section>
+      </div>
+      <div className="analytics-stats pair">
+        <section className="blue">
+          <Scales size={22} />
+          <span>Dự kiến và thực tế</span>
+          <strong>{estimate.ratio === null ? "—" : deviation(estimate.ratio)}</strong>
+          <small>
+            {estimate.ratio === null
+              ? "Hoàn thành vài phiên học để so sánh với thời gian đã xếp"
+              : `Thực tế ${duration(estimate.actualMinutes)} so với dự kiến ${duration(estimate.plannedMinutes)} (${estimate.sessions} phiên)`}
+          </small>
+        </section>
+        <section className="yellow">
+          <Flag size={22} />
+          <span>Hoàn thành đúng hạn</span>
+          <strong>{onTimeRate === null ? "—" : `${onTimeRate}%`}</strong>
+          <small>
+            {deadlines.finished
+              ? `${deadlines.onTime}/${deadlines.finished} công việc xong trước hoặc đúng deadline`
+              : "Chưa có công việc nào được hoàn thành"}
+            {deadlines.overdue ? ` · ${deadlines.overdue} việc đang quá hạn` : ""}
           </small>
         </section>
       </div>
@@ -166,6 +204,8 @@ export function AnalyticsPage({ state }: { state: AppState }) {
             {total
               ? `Bạn đã học ${duration(total)}${top?.minutes ? `, dành nhiều thời gian nhất cho ${top.subject.short}` : ""}. Hãy thử chia những việc lớn thành các phiên ngắn hơn.`
               : "Chưa có phiên học nào được ghi nhận. Bắt đầu với một phiên ngắn từ Bảng kế hoạch nhé."}
+            {margin !== null &&
+              ` Các phiên của bạn thường dài hơn dự kiến khoảng ${margin}%: khi thêm việc mới, hãy ước lượng dư ra chừng đó.`}
           </p>
         </div>
         <ArrowUpRight size={28} />

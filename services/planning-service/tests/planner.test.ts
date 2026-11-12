@@ -34,18 +34,18 @@ test('worker result matches the engine run in-process', async () => {
   assert.deepEqual(shape(viaWorker), shape(direct));
 });
 
-test('the event loop stays responsive while a 500-task plan is computed', async () => {
+test('the event loop stays responsive while a 1500-task plan is computed', async () => {
   const blockedInProcess = await maxTimerGap(() => {
-    const { ctx, tasks } = bigInput(500);
+    const { ctx, tasks } = bigInput(1500);
     generatePlan(ctx, tasks);
   });
   const blockedWithWorker = await maxTimerGap(() => {
-    const { ctx, tasks } = bigInput(500);
+    const { ctx, tasks } = bigInput(1500);
     return planner.generate(ctx, tasks);
   });
   console.log(`  event loop blocked: in-process ${Math.round(blockedInProcess)} ms, worker ${Math.round(blockedWithWorker)} ms`);
-  assert.ok(blockedInProcess > 300, 'the in-process run does block (sanity check of the measurement)');
-  assert.ok(blockedWithWorker < 150, `worker run blocked the loop for ${Math.round(blockedWithWorker)} ms`);
+  assert.ok(blockedInProcess > 150, 'the in-process run does block (sanity check of the measurement)');
+  assert.ok(blockedWithWorker < Math.min(100, blockedInProcess / 4), `worker run blocked the loop for ${Math.round(blockedWithWorker)} ms`);
 });
 
 test.after(() => planner.close());

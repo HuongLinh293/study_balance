@@ -81,4 +81,12 @@ if (first) {
   await ok('PATCH', `/api/task/tasks/${first.taskId}/progress`, { token, body: { minutes: first.minutes + 10, sessionId: first.id } });
   console.log(green('✔ Đã ghi 1 phiên học thực tế (dài hơn dự kiến 10 phút)'));
 }
+// One session last evening that was never studied, so "Cứu kế hoạch" on the Today page has
+// something to rescue. The API refuses past dates, so it is moved in the database (development only).
+const missed = proposal.proposed.filter((s) => s.taskId === ids[4]).sort((a, b) => b.minutes - a.minutes)[0];
+if (missed) {
+  const sql = `UPDATE planning_db.study_sessions SET date = '${addDays(d0, -1)}', start_minute = ${19 * 60 + 30} WHERE id = '${missed.id}';`;
+  execFileSync('docker', ['compose', 'exec', '-T', 'mysql', 'sh', '-c', `MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e "${sql}"`], { stdio: 'inherit' });
+  console.log(green(`✔ 1 phiên tối qua bị lỡ (${tasks[4].title}, ${missed.minutes} phút) cho phần Cứu kế hoạch`));
+}
 show('Đăng nhập', `${DEMO.email} / ${DEMO.password}`);

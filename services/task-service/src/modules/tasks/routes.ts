@@ -52,6 +52,8 @@ const listSchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 const idParam = z.object({ id: z.uuid() });
+const stepParam = z.object({ id: z.uuid(), index: z.coerce.number().int().min(0).max(49) });
+const stepSchema = z.object({ done: z.boolean(), version: z.number().int().positive().optional() });
 
 async function assertSubject(conn: PoolConnection, userId: string, subjectId: string | null | undefined) {
   if (!subjectId) return;
@@ -120,6 +122,28 @@ export function tasksRouter(pool: Pool) {
         [next.subjectId, next.title, next.dueDate, next.remainingMinutes, next.priority, next.done, next.note, id],
       );
       if (input.steps) await replaceSteps(conn, id, input.steps);
+      const updated = (await findTask(conn, userId, id))!;
+      await emitTask(conn, 'TaskUpdated', userId, id, updated.version, snapshot(updated), res.locals.correlationId);
+      return updated;
+    });
+    res.json(task);
+  });
+
+  /** Ticks a step off (or back on). Steps are a checklist: remaining minutes stay the user's call. */
+  router.patch('/tasks/:id/steps/:index', async (req, res) => {
+    const { id, index } = parse(stepParam, req.params);
+    const input = parse(stepSchema, req.body);
+    const userId = userIdOf(res);
+    const task = await withTransaction(pool, async (conn) => {
+      const current = await findTask(conn, userId, id, true);
+      if (!current) throw notFound('Task');
+      if (input.version !== undefined && input.version !== current.version) {
+        throw conflict('VERSION_CONFLICT', 'Task was changed elsewhere', { current });
+      }
+      if (index >= current.steps.length) throw notFound('Step');
+      if (current.stepsDone[index] === input.done) return current;
+      await exec(conn, 'UPDATE subtasks SET done = ? WHERE task_id = ? AND position = ?', [input.done, id, index]);
+      await exec(conn, 'UPDATE tasks SET version = version + 1 WHERE id = ?', [id]);
       const updated = (await findTask(conn, userId, id))!;
       await emitTask(conn, 'TaskUpdated', userId, id, updated.version, snapshot(updated), res.locals.correlationId);
       return updated;

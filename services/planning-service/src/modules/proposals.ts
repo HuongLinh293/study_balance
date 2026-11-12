@@ -18,7 +18,7 @@ export async function fingerprint(
 ) {
   const sessions = await rows<{ id: string; version: number }>(
     db,
-    "SELECT id, version FROM study_sessions WHERE user_id = ? AND (status = 'planned' OR date >= ?)",
+    'SELECT id, version FROM study_sessions WHERE user_id = ? AND date >= ?',
     [userId, today],
   );
   const parts = [

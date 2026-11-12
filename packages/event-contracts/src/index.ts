@@ -70,6 +70,8 @@ export interface StudySessionCompletedPayload {
   taskId: string;
   date: string;
   actualMinutes: number;
+  /** Minutes the session was planned for (absent in events produced before it was added). */
+  plannedMinutes?: number;
 }
 
 export interface EventPayloads {

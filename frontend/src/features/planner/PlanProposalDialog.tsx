@@ -168,7 +168,11 @@ export function PlanProposalDialog({
             }
           }}
         >
-          Thêm {proposal?.proposed.length ?? 0} phiên vào lịch
+          {!proposal
+            ? "Đang tính đề xuất…"
+            : proposal.proposed.length
+              ? `Thêm ${proposal.proposed.length} phiên vào lịch`
+              : "Không có phiên mới"}
           <Check size={17} />
         </button>
       </div>

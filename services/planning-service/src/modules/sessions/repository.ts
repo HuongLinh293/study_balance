@@ -90,13 +90,14 @@ export async function loadAvailability(db: Db, userId: string) {
 type LoadedPrefs = Awaited<ReturnType<typeof loadPrefs>>;
 /**
  * Planning context for a user: preferences, availability, and every session
- * that can constrain placement (all planned sessions plus done ones from today on).
+ * that can constrain placement: sessions from today on. Planned sessions on past
+ * days were missed and no longer reserve time for their task.
  */
 export async function loadContext(db: Db, userId: string, prefs: LoadedPrefs, excludeId?: string): Promise<PlanContext & { versions: { prefs: number; availability: number } }> {
   const { availability, version } = await loadAvailability(db, userId);
   const list = await rows<SessionRow>(
     db,
-    `${SELECT} WHERE user_id = ? AND (status = 'planned' OR date >= ?) AND id <> ?`,
+    `${SELECT} WHERE user_id = ? AND date >= ? AND id <> ?`,
     [userId, prefs.now.date, excludeId ?? ''],
   );
   return {

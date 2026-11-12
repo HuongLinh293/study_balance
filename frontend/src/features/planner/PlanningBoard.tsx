@@ -86,7 +86,7 @@ export function PlanningBoard({
   );
   const remaining = Math.max(0, state.preferences.limit - total);
   const now = minutesOfDay();
-  const view = viewHours(state.availability);
+  const view = viewHours(state.availability, state.sessions);
   const y = (minute: number) => ((minute - view.from * 60) / 60) * HOUR;
   const showNow = day === today && now >= view.from * 60 && now <= view.to * 60;
   return (

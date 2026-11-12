@@ -29,6 +29,12 @@ export function chart(period: Period, date: string, byDate: Map<string, number>)
   }
   return { labels: values.map((_, i) => `Tuần ${i + 1}`), values, current: Math.floor((Number(date.slice(8)) - 1) / 7) };
 }
+/** How much longer (ratio > 1) or shorter than planned sessions actually took; null without data. */
+export function estimateRatio(plannedMinutes: number, actualMinutes: number) {
+  return plannedMinutes > 0 ? Math.round((actualMinutes / plannedMinutes) * 100) / 100 : null;
+}
+/** Days of history read to count the streak. */
+export const STREAK_LOOKBACK_DAYS = 400;
 /** Consecutive study days ending today, or yesterday when today has no study yet. */
 export function streak(today: string, studied: Set<string>) {
   let day = studied.has(today) ? today : addDays(today, -1);

@@ -1,5 +1,5 @@
 import { PlanningBoard } from "./PlanningBoard";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,7 +19,7 @@ import {
   type Task,
   type Session,
 } from "../../data/state";
-import { busyOn, closedRanges, viewHours } from "../../data/schedule";
+import { busyOn, closedRanges, isMissed, viewHours, windowsOn } from "../../data/schedule";
 import {
   addDays,
   parseISODate,
@@ -53,7 +53,7 @@ export function CalendarPage({
   const [offset, setOffset] = useState(0);
   const [mode, setMode] = useState<"week" | "day">("week");
   const today = todayISO();
-  const grid = viewHours(state.availability);
+  const grid = viewHours(state.availability, state.sessions);
   const y = (minute: number) => ((minute - grid.from * 60) / 60) * HOUR;
   const [selected, setSelected] = useState(today);
   const weekStart = (weeks: number) => addDays(startOfWeek(today), weeks * 7);
@@ -69,8 +69,25 @@ export function CalendarPage({
     };
   };
   const unplanned = state.tasks.filter(
-    (t) => !t.done && !state.sessions.some((s) => s.taskId === t.id && !s.done),
+    (t) =>
+      !t.done &&
+      !state.sessions.some((s) => s.taskId === t.id && !s.done && !isMissed(s, today)),
   );
+  // Open the grid at the first study time of the day in focus (e.g. 18:30 for evening
+  // windows) instead of 08:00, so the user does not scroll past empty hours.
+  const scrollMark = useRef<HTMLElement>(null);
+  const focusDay = mode === "day" ? selected : days.includes(today) ? today : days[0];
+  const firstMinute = Math.min(
+    ...windowsOn(state.availability, focusDay).map(([s]) => s),
+    ...state.sessions.filter((s) => s.date === focusDay).map((s) => s.start),
+  );
+  const markTop = Number.isFinite(firstMinute) ? Math.max(0, y(firstMinute) - 30) : 0;
+  useEffect(() => {
+    if (view === "calendar" && markTop > HOUR)
+      scrollMark.current?.scrollIntoView({ block: "start", behavior: "instant" });
+    // Only when the calendar opens or the visible day changes, not on every refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, mode, focusDay]);
   const selectedSessions = state.sessions
     .filter((s) => s.date === selected)
     .sort((a, b) => a.start - b.start);
@@ -241,6 +258,11 @@ export function CalendarPage({
             </div>
           ))}
         <div className="time-column" style={{ height: grid.hours * HOUR + HOUR }}>
+          <i
+            ref={scrollMark}
+            aria-hidden="true"
+            style={{ position: "absolute", top: markTop, height: 1, width: 1 }}
+          />
           {Array.from({ length: grid.hours + 1 }, (_, i) => (
             <span key={i}>{String(i + grid.from).padStart(2, "0")}:00</span>
           ))}
@@ -328,9 +350,9 @@ export function CalendarPage({
                             top: `${y(s.start)}px`,
                             height: `${(s.minutes / 60) * HOUR}px`,
                           }}
-                          className={`calendar-block ${sub.color} ${s.done || t.done ? "finished" : ""} ${s.minutes < 30 ? "short-event" : ""}`}
+                          className={`calendar-block ${sub.color} ${s.done || t.done ? "finished" : ""} ${!t.done && isMissed(s, today) ? "missed" : ""} ${s.minutes < 30 ? "short-event" : ""}`}
                           key={s.id}
-                          aria-label={`${t.title}, ${time(s.start)} · ${s.minutes} phút${t.done ? ", công việc đã xong" : ""}`}
+                          aria-label={`${t.title}, ${time(s.start)} · ${s.minutes} phút${t.done ? ", công việc đã xong" : isMissed(s, today) ? ", phiên đã lỡ" : ""}`}
                           onClick={() => onTask(t)}
                         >
                           <span>
@@ -342,7 +364,9 @@ export function CalendarPage({
                               ? "Phiên đã học"
                               : t.done
                                 ? "Công việc đã xong"
-                                : sub.short}
+                                : isMissed(s, today)
+                                  ? "Bỏ lỡ"
+                                  : sub.short}
                           </small>
                         </button>
                       );
@@ -365,7 +389,9 @@ export function CalendarPage({
                   {time(s.start)} — {time(s.start + s.minutes)}
                 </span>
                 <strong>{task.title}</strong>
-                <span>{s.done ? "Đã học xong" : duration(s.minutes)}</span>
+                <span>
+                  {s.done ? "Đã học xong" : isMissed(s, today) ? "Bỏ lỡ" : duration(s.minutes)}
+                </span>
               </button>
             );
           })

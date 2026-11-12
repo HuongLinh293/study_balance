@@ -37,7 +37,10 @@ export const handlers: EventHandlers = {
     await upsertIfNewer(conn, 'session_projection', 'session_id', {
       session_id: e.aggregateId,
       user_id: e.userId,
+      task_id: e.payload.taskId,
       date: e.payload.date,
+      start_minute: e.payload.startMinute,
+      minutes: e.payload.minutes,
       status: e.payload.status,
       deleted: e.payload.deleted,
       version: e.aggregateVersion,

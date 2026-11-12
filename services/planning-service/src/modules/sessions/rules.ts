@@ -91,15 +91,21 @@ const sessionsOn = (ctx: PlanContext, date: string) => ctx.sessions.filter((s) =
 export const dayLoad = (ctx: PlanContext, date: string) => sessionsOn(ctx, date).reduce((n, s) => n + s.minutes, 0);
 
 /** Where a new session may start and end on `date`. */
-export function freeRanges(ctx: PlanContext, date: string): Range[] {
+export const freeRanges = (ctx: PlanContext, date: string) => freeAmong(ctx, date, sessionsOn(ctx, date));
+function freeAmong(ctx: PlanContext, date: string, sessions: Slot[]): Range[] {
   if (date < ctx.now.date) return [];
   let free = windowsOn(ctx.availability, date);
   for (const busy of busyOn(ctx.availability, date)) free = subtract(free, busy);
   if (date === ctx.now.date) free = subtract(free, [0, ctx.now.minute]);
   const rest = ctx.prefs.restMinutes;
-  for (const s of sessionsOn(ctx, date)) free = subtract(free, [s.startMinute - rest, s.startMinute + s.minutes + rest]);
+  for (const s of sessions) free = subtract(free, [s.startMinute - rest, s.startMinute + s.minutes + rest]);
   return free;
 }
+/**
+ * A planned session on a day that has passed was missed: it no longer reserves
+ * time for its task, so the task's remainder can be planned again.
+ */
+export const isMissed = (s: Slot, today: string) => s.status === 'planned' && s.date < today;
 /** Planned minutes still unallocated for a task. Done sessions already reduced remainingMinutes. */
 export function remainingToSchedule(task: TaskInfo, sessions: Slot[]) {
   const allocated = sessions
@@ -142,36 +148,78 @@ function* datesBetween(from: string, to: string) {
 }
 
 /**
- * Proposes new sessions for every open task, earliest deadline first (high
- * priority breaks ties). A first pass allows at most two sessions per task per
- * day to spread the work; a second pass fills what is still missing. Whatever
- * cannot fit before the deadline is reported as a shortfall, never squeezed in.
+ * Per-date and per-task lookups over the sessions being planned, so each
+ * placement costs O(sessions that day) instead of a scan of every session.
  */
-export function generatePlan(ctx: PlanContext, tasks: TaskInfo[]) {
-  const open = tasks
-    .filter((t) => !t.done && t.dueDate >= ctx.now.date && remainingToSchedule(t, ctx.sessions) > 0)
-    .sort(
-      (a, b) =>
-        a.dueDate.localeCompare(b.dueDate) ||
-        Number(b.priority === 'high') - Number(a.priority === 'high') ||
-        a.taskId.localeCompare(b.taskId),
-    );
-  const needed = new Map(open.map((t) => [t.taskId, remainingToSchedule(t, ctx.sessions)]));
+class PlanIndex {
+  private byDate = new Map<string, Slot[]>();
+  private load = new Map<string, number>();
+  private allocated = new Map<string, number>();
+  /** Free ranges per date; only adding a session on that date changes them. */
+  private freeCache = new Map<string, Range[]>();
+  constructor(private ctx: PlanContext) {
+    for (const s of ctx.sessions) this.index(s);
+  }
+  private index(s: Slot) {
+    const day = this.byDate.get(s.date);
+    if (day) day.push(s);
+    else this.byDate.set(s.date, [s]);
+    this.load.set(s.date, (this.load.get(s.date) ?? 0) + s.minutes);
+    if (s.status === 'planned') this.allocated.set(s.taskId, (this.allocated.get(s.taskId) ?? 0) + s.minutes);
+  }
+  add(s: Slot) {
+    this.ctx.sessions.push(s);
+    this.index(s);
+    this.freeCache.delete(s.date);
+  }
+  remaining = (t: TaskInfo) => Math.max(0, t.remainingMinutes - (this.allocated.get(t.taskId) ?? 0));
+  dayLoad = (date: string) => this.load.get(date) ?? 0;
+  free = (date: string) => {
+    let free = this.freeCache.get(date);
+    if (!free) {
+      free = this.dayLoad(date) >= this.ctx.prefs.dailyLimitMinutes ? [] : freeAmong(this.ctx, date, this.byDate.get(date) ?? []);
+      this.freeCache.set(date, free);
+    }
+    return free;
+  };
+}
+
+/**
+ * Greedy placement, earliest deadline first (high priority breaks ties). A first
+ * pass allows at most two sessions per task per day to spread the work; later
+ * passes fill what is still missing. With `bufferDays`, each pass first aims to
+ * finish that many days before the deadline, then may use those days: spreading
+ * work over days matters more than keeping the buffer.
+ */
+function place(ctx: PlanContext, open: TaskInfo[], bufferDays: number) {
+  const idx = new PlanIndex(ctx);
   const proposed: Slot[] = [];
-  for (const perDayCap of [2, Infinity]) {
+  const perDay = new Map<string, number>();
+  const passes = bufferDays
+    ? [
+        { cap: 2, buffer: bufferDays },
+        { cap: 2, buffer: 0 },
+        { cap: Infinity, buffer: bufferDays },
+        { cap: Infinity, buffer: 0 },
+      ]
+    : [{ cap: 2, buffer: 0 }, { cap: Infinity, buffer: 0 }];
+  for (const { cap, buffer } of passes) {
     for (const task of open) {
-      for (const date of datesBetween(ctx.now.date, task.dueDate)) {
-        let placedToday = proposed.filter((p) => p.taskId === task.taskId && p.date === date).length;
-        while (remainingToSchedule(task, ctx.sessions) > 0 && placedToday < perDayCap) {
-          const need = remainingToSchedule(task, ctx.sessions);
-          const limitLeft = ctx.prefs.dailyLimitMinutes - dayLoad(ctx, date);
+      const target = addDays(task.dueDate, -buffer);
+      const last = target < ctx.now.date ? ctx.now.date : target;
+      for (const date of datesBetween(ctx.now.date, last)) {
+        const key = `${task.taskId}|${date}`;
+        let placedToday = perDay.get(key) ?? 0;
+        while (idx.remaining(task) > 0 && placedToday < cap) {
+          const need = idx.remaining(task);
+          const limitLeft = ctx.prefs.dailyLimitMinutes - idx.dayLoad(date);
           let placed = false;
-          for (const [s, e] of freeRanges(ctx, date)) {
+          for (const [s, e] of idx.free(date)) {
             const start = Math.ceil(s / 5) * 5;
             const size = Math.min(ctx.prefs.sessionMinutes, need, e - start, limitLeft);
             if (size < Math.min(need, MIN_CHUNK) || size < 5) continue;
             const slot: Slot = { id: randomUUID(), taskId: task.taskId, date, startMinute: start, minutes: size, status: 'planned' };
-            ctx.sessions.push(slot);
+            idx.add(slot);
             proposed.push(slot);
             placedToday++;
             placed = true;
@@ -179,22 +227,63 @@ export function generatePlan(ctx: PlanContext, tasks: TaskInfo[]) {
           }
           if (!placed) break;
         }
+        perDay.set(key, placedToday);
+        if (idx.remaining(task) === 0) break;
       }
     }
   }
+  const missing = open.reduce((n, t) => n + idx.remaining(t), 0);
+  return { proposed, missing, remaining: idx.remaining };
+}
+
+/** Days kept free before each deadline when no task ends up with more unplaced work. */
+export const BUFFER_DAYS = 1;
+
+/**
+ * Proposes new sessions for every open task. Missed sessions (planned, on a past
+ * day) do not count as scheduled time. The plan first tries to finish one day
+ * before each deadline; if that leaves any task with more work unplaced than
+ * planning right up to the deadlines, the latter is used. Whatever cannot fit
+ * before the deadline is reported as a shortfall, never squeezed in.
+ */
+export function generatePlan(ctx: PlanContext, tasks: TaskInfo[]) {
+  ctx.sessions = ctx.sessions.filter((s) => !isMissed(s, ctx.now.date));
+  const base = new PlanIndex({ ...ctx, sessions: [...ctx.sessions] });
+  const open = tasks
+    .filter((t) => !t.done && t.dueDate >= ctx.now.date && base.remaining(t) > 0)
+    .sort(
+      (a, b) =>
+        a.dueDate.localeCompare(b.dueDate) ||
+        Number(b.priority === 'high') - Number(a.priority === 'high') ||
+        a.taskId.localeCompare(b.taskId),
+    );
+  const needed = new Map(open.map((t) => [t.taskId, base.remaining(t)]));
+  const attempt = (bufferDays: number) => {
+    const trial = { ...ctx, sessions: [...ctx.sessions] };
+    return { trial, ...place(trial, open, bufferDays) };
+  };
+  // The buffer must cost nothing: compared task by task, not in total, so it never
+  // moves a shortfall onto a task with an earlier deadline.
+  const buffered = attempt(BUFFER_DAYS);
+  let plan = buffered;
+  if (buffered.missing > 0) {
+    const tight = attempt(0);
+    if (open.some((t) => buffered.remaining(t) > tight.remaining(t))) plan = tight;
+  }
+  ctx.sessions = plan.trial.sessions;
   const shortfalls = open
     .map((t) => ({
       taskId: t.taskId,
       dueDate: t.dueDate,
       neededMinutes: needed.get(t.taskId)!,
-      missingMinutes: remainingToSchedule(t, ctx.sessions),
+      missingMinutes: plan.remaining(t),
     }))
     .filter((s) => s.missingMinutes > 0);
   return {
-    proposed,
+    proposed: plan.proposed,
     shortfalls,
     neededMinutes: [...needed.values()].reduce((a, b) => a + b, 0),
-    placedMinutes: proposed.reduce((a, p) => a + p.minutes, 0),
+    placedMinutes: plan.proposed.reduce((a, p) => a + p.minutes, 0),
   };
 }
 

@@ -95,6 +95,47 @@ test('generated plan meets deadlines first, splits by session length and spreads
   assert.equal(result.placedMinutes, 220);
   for (const p of result.proposed) assert.equal(validateTimebox({ ...c, sessions: c.sessions.filter((s) => s !== p) }, task(p.taskId, '2026-10-27', 999), p.date, p.startMinute, p.minutes), null);
 });
+test('a missed session no longer reserves time: its work is planned again', () => {
+  // Yesterday's planned session was never finished.
+  const c = ctx([slot('missed', 't1', '2026-10-23', 540, 60)]);
+  const result = generatePlan(c, [task('t1', '2026-10-27', 60)]);
+  assert.equal(result.neededMinutes, 60);
+  assert.equal(result.placedMinutes, 60);
+  assert.ok(result.proposed.every((p) => p.date >= TODAY));
+});
+test('work aims to finish a day before the deadline when that costs nothing', () => {
+  const result = generatePlan(ctx([]), [task('t1', '2026-10-27', 200)]);
+  assert.deepEqual(result.shortfalls, []);
+  assert.ok(result.proposed.every((p) => p.date < '2026-10-27'), 'deadline day kept free');
+});
+test('the buffer day is used when the work does not fit otherwise', () => {
+  // 240 min/day: today (from 09:00) + tomorrow cannot hold 700 minutes, the deadline day must be used.
+  const result = generatePlan(ctx([]), [task('t1', '2026-10-26', 700)]);
+  assert.deepEqual(result.shortfalls, []);
+  assert.ok(result.proposed.some((p) => p.date === '2026-10-26'));
+});
+test('the buffer never moves a shortfall onto a more urgent task', () => {
+  // Demo week (Thursday 13:43): evenings on weekdays, mornings at weekends, 150 min/day.
+  const weekly = Array.from({ length: 7 }, (_, weekday) =>
+    weekday < 5 ? { weekday, startMinute: 1110, endMinute: 1290 } : { weekday, startMinute: 480, endMinute: 690 },
+  );
+  const c = ctx([], {
+    now: { date: '2026-11-12', minute: 823 },
+    availability: { windows: weekly, busy: [] },
+    prefs: { restMinutes: 10, dailyLimitMinutes: 150, sessionMinutes: 50 },
+  });
+  const due = (n: number) => `2026-11-${String(12 + n).padStart(2, '0')}`;
+  const result = generatePlan(c, [
+    task('subnet', due(1), 120, { priority: 'high' }),
+    task('read', due(2), 60),
+    task('report', due(3), 240, { priority: 'high' }),
+    task('lamport', due(4), 90),
+    task('exam', due(5), 180),
+    task('lab', due(6), 90),
+    task('project', due(12), 1500, { priority: 'high' }),
+  ]);
+  assert.deepEqual(result.shortfalls.map((s) => s.taskId), ['project'], 'only the large project lacks time');
+});
 test('a plan that cannot fit reports the shortfall instead of overfilling', () => {
   // 7 hours available before the deadline (spec example), 9 hours needed → 2 hours missing.
   const c = ctx([], {

@@ -17,16 +17,21 @@ export const windowsOn = (availability: Availability, date: string): Range[] =>
 export const busyOn = (availability: Availability, date: string) =>
   availability.busy.filter((b) => b.date === date);
 
-/** Hour range the calendars show: every study window and busy period fits, never smaller than 08:00–18:00. */
-export function viewHours(availability: Availability) {
+/**
+ * Hour range the calendars show: every study window, busy period and session fits
+ * (a session can sit outside today's windows after they changed), never smaller than 08:00–18:00.
+ */
+export function viewHours(availability: Availability, sessions: { start: number; minutes: number }[] = []) {
   const timedBusy = availability.busy.filter((b) => !(b.startMinute === 0 && b.endMinute >= 1440));
   const starts = [
     ...availability.windows.map((w) => w.startMinute),
     ...timedBusy.map((b) => b.startMinute),
+    ...sessions.map((s) => s.start),
   ];
   const ends = [
     ...availability.windows.map((w) => w.endMinute),
     ...timedBusy.map((b) => b.endMinute),
+    ...sessions.map((s) => s.start + s.minutes),
   ];
   const from = Math.floor(Math.min(480, ...starts) / 60);
   const to = Math.ceil(Math.max(1080, ...ends) / 60);
@@ -44,9 +49,13 @@ export function closedRanges(availability: Availability, date: string, from: num
   return out.filter(([s, e]) => e > s);
 }
 
+/** A planned session on a day that has passed: it was not studied (or not recorded). */
+export const isMissed = (s: { done: boolean; date: string }, today = todayISO()) => !s.done && s.date < today;
+/** Missed sessions no longer reserve time, matching the planning service. */
 export function remainingToSchedule(state: AppState, task: Task) {
+  const today = todayISO();
   const allocated = state.sessions
-    .filter((s) => s.taskId === task.id && !s.done)
+    .filter((s) => s.taskId === task.id && !s.done && !isMissed(s, today))
     .reduce((n, s) => n + s.minutes, 0);
   return Math.max(0, task.minutes - allocated);
 }

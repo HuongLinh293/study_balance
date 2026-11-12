@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, setAccessToken, type Profile } from "./api";
 import { useNotificationStream } from "./notificationStream";
+import { useBrowserNotifications } from "./browserNotifications";
 import { addDays, todayISO } from "../data/dates";
 import type {
   AppState,
@@ -25,6 +26,7 @@ interface ApiTask {
   done: boolean;
   note: string;
   steps: string[];
+  stepsDone?: boolean[];
   version: number;
 }
 export interface ApiSession {
@@ -39,7 +41,7 @@ export interface ApiSession {
 }
 export interface Notification {
   id: string;
-  kind: "deadline" | "plan";
+  kind: "deadline" | "plan" | "session";
   taskId: string | null;
   title: string;
   body: string;
@@ -73,6 +75,10 @@ export interface Summary {
   completedTasks: number;
   totalTasks: number;
   bySubject: { subjectId: string | null; minutes: number }[];
+  /** Planned vs actual minutes of sessions finished in the period; ratio null without data. */
+  estimate: { sessions: number; plannedMinutes: number; actualMinutes: number; ratio: number | null };
+  /** Finished tasks (all time) done by their deadline, and open tasks already past it. */
+  deadlines: { finished: number; onTime: number; overdue: number };
 }
 
 const toTask = (t: ApiTask): Task => ({
@@ -85,6 +91,7 @@ const toTask = (t: ApiTask): Task => ({
   done: t.done,
   note: t.note,
   steps: t.steps,
+  stepsDone: t.steps.map((_, i) => t.stepsDone?.[i] ?? false),
   version: t.version,
 });
 /**
@@ -184,6 +191,7 @@ export function useStudyData() {
       ),
     refetchInterval: streaming ? false : 60_000,
   });
+  useBrowserNotifications(notifications.data?.items, me.data?.preferences.reminders ?? true);
 
   const state = useMemo<AppState | null>(() => {
     if (!me.data || !availability.data || !subjects.data || !tasks.data || !sessions.data)
@@ -245,6 +253,13 @@ export function useStudyData() {
         () => void client.invalidateQueries({ queryKey: keys.sessions }),
         800,
       );
+    },
+    async toggleStep(task: Task, index: number, done: boolean) {
+      await api("PATCH", `/api/task/tasks/${task.id}/steps/${index}`, {
+        version: task.version,
+        done,
+      });
+      refresh(keys.tasks);
     },
     async saveSubject(subject: Subject, isNew: boolean) {
       const body = {

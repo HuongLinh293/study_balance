@@ -156,7 +156,7 @@ export function sessionsRouter(pool: Pool) {
           aggregateVersion: done.version,
           userId,
           correlationId: res.locals.correlationId,
-          payload: { taskId: done.taskId, date: done.date, actualMinutes: input.actualMinutes },
+          payload: { taskId: done.taskId, date: done.date, actualMinutes: input.actualMinutes, plannedMinutes: done.minutes },
         }),
       );
       return done;

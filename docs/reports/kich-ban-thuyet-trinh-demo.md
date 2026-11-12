@@ -1,6 +1,6 @@
 # Kịch bản thuyết trình và demo — StudyBalance
 
-Thời lượng giả định: **25 phút**, gồm khoảng 9 phút trình bày, 13 phút demo và 3 phút dự phòng; hỏi đáp tính riêng. Nếu hội đồng cho thời lượng khác, giữ thứ tự và co giãn theo cột "phút". Khi bị ép thời gian, dùng [bản rút gọn](#bản-rút-gọn-8-phút).
+Thời lượng giả định: **25 phút**, gồm khoảng 9 phút trình bày, 14 phút demo và 2 phút dự phòng; hỏi đáp tính riêng. Nếu hội đồng cho thời lượng khác, giữ thứ tự và co giãn theo cột "phút". Khi bị ép thời gian, dùng [bản rút gọn](#bản-rút-gọn-8-phút).
 
 Nguyên tắc: **mỗi tiêu chí trong bảng chấm phải được *thấy* trong demo hoặc trên sơ đồ**, không chỉ được nói. Cột "Chương" cho biết phần đó lấy điểm ở tiêu chí nào.
 
@@ -31,7 +31,7 @@ Nguyên tắc: **mỗi tiêu chí trong bảng chấm phải được *thấy* t
 | # | Slide | Nội dung chính | Hình | Chương | Phút |
 |---|---|---|---|---|---|
 | 1 | Đặt vấn đề | Sinh viên có danh sách deadline nhưng không biết hôm nay nên học gì, có đủ thời gian không. Ví dụ: 9 giờ việc, chỉ 7 giờ rảnh | — | 1 | 1 |
-| 2 | Mục tiêu | Lập lịch theo quỹ thời gian thật, báo phần thiếu, "Nếu… thì sao?". Mục tiêu học thuật: hệ phân tán hướng sự kiện chịu được lỗi | — | 1 | 0.5 |
+| 2 | Mục tiêu | Lập lịch theo quỹ thời gian thật, báo phần thiếu, "Nếu… thì sao?", cứu kế hoạch khi bị lỡ phiên. Mục tiêu học thuật: hệ phân tán hướng sự kiện chịu được lỗi | — | 1 | 0.5 |
 | 3 | Kiến trúc tổng thể | 5 service theo 5 nghiệp vụ, mỗi service một database, gateway, RabbitMQ | `01-tong-quan` | 1, 2 | 1.5 |
 | 4 | Vì sao chọn kiến trúc này | So sánh Monolith / SOA / Microservice / Hướng sự kiện; bài học từ Netflix (Hystrix) và Uber (DOMA) | bảng trong `architecture/README.md` | 1, 2 | 1 |
 | 5 | Triển khai | Container, 2 bản sao sau Nginx, primary + replica, backup, Prometheus/Grafana | `02-trien-khai` | 2, 7, 8 | 1 |
@@ -39,29 +39,36 @@ Nguyên tắc: **mỗi tiêu chí trong bảng chấm phải được *thấy* t
 | 7 | Tiến trình và luồng | Planner trong `worker_threads`: event loop bị chặn 1612 ms → 12 ms; scheduler, tác vụ nền, Docker quản lý tiến trình | số liệu | 3 | 1 |
 | 8 | Định danh và bảo mật | UUID, JWT 15 phút + refresh xoay vòng, DNS của Docker, TLS 1.2/1.3 | `06-xac-thuc` | 5 | 0.5 |
 | 9 | Dữ liệu và chịu lỗi | Sao lưu + replica; LB, failover, restart, circuit breaker, giám sát | `07`, `08` | 7, 8 | 1 |
-| 10 | Kết quả và giới hạn | E2E 16/16, các phép thử sự cố; nêu thẳng giới hạn (mục 6) | `docs/test-results/` | — | 0.5 |
+| 10 | Kết quả và giới hạn | E2E 16/16, kiểm thử luồng cứu kế hoạch, các phép thử sự cố; thuật toán xếp lịch nhanh hơn ~5 lần (500 việc: 502 → 114 ms); nêu thẳng giới hạn (mục 6) | `docs/test-results/` | — | 0.5 |
 
 Câu chuyển sang demo: *"Em xin demo theo đúng thứ tự các tiêu chí: đầu tiên là sản phẩm, sau đó lần lượt từng cơ chế phân tán."*
 
 ## 3. Demo
 
-### Phần A — Sản phẩm trên giao diện (≈ 4 phút, chương 1–2)
+### Phần A — Sản phẩm trên giao diện (≈ 5 phút, chương 1–2)
 
 Dùng cửa sổ trái. Các bước đã được bấm thử trên Chrome với tài khoản demo vừa `seed`.
 
 1. **Hôm nay:** thẻ "Tiếp theo, tập trung vào" (Bài tập chia subnet), thời gian học hôm nay và số việc đã hoàn thành.
-2. **Lịch của tôi:** các phiên đã được xếp vào khung tối, kèm cột **"Chưa xếp lịch"** (Đồ án microservice).
+   Ngay trên cùng là thẻ **Cứu kế hoạch**: `seed` tạo sẵn một phiên *Ôn thi giữa kỳ CSDL* tối qua chưa học.
+   > "Tối qua em bận, bỏ lỡ 50 phút ôn thi. Hệ thống không giả vờ là phiên đó vẫn còn: 50 phút này không còn giữ chỗ trong lịch nữa."
+
+   Chỉ vào hai nút **Tôi đã học** (nếu thực ra đã học nhưng quên ghi) và **Bỏ qua**, rồi bấm **Xếp lại phần đã lỡ**: bản đề xuất xếp lại **1 phiên, 50 phút** trước deadline. Bấm **"Thêm 1 phiên vào lịch"**; thẻ biến mất.
+   > "Hệ thống không tự dời deadline hay tự thêm giờ ngoài lịch rảnh. Mọi thay đổi chỉ xảy ra khi em đồng ý."
+2. **Bước nhỏ:** mở *Báo cáo chuẩn hóa 3NF*, tick bước "Vẽ ERD", tiêu đề đổi thành "1/3 xong".
+3. **Lịch của tôi → Lịch tuần:** lịch tự mở ở 18:30 (giờ học buổi tối); các phiên đã được xếp vào khung tối, kèm cột **"Chưa xếp lịch"** (Đồ án microservice).
    > "Lịch rảnh của em là buổi tối và sáng cuối tuần, tối đa 150 phút mỗi ngày."
 
    Bấm **"Gợi ý lịch"**: hộp thoại báo **"Thiếu … trước deadline"** và đưa ra các cách bổ sung thời gian. Bấm "Để sau".
    > "Hệ thống không nhồi lịch vượt quỹ thời gian, mà báo rõ phần thiếu để em tự quyết định."
-3. **Thử thay đổi → "Tôi bận chiều nay" → "Xem phương án mới".** Bản xem trước hiện ra: "Dành lại … cho bạn", phiên nào dời, phiên nào **không còn chỗ trước deadline** và vì sao.
+4. **Thử thay đổi → "Tôi bận chiều nay" → "Xem phương án mới".** Bản xem trước hiện ra: "Dành lại … cho bạn", phiên nào dời, phiên nào **không còn chỗ trước deadline** và vì sao.
    > "Lịch chưa đổi. Em chọn: giữ lịch hiện tại, hoặc áp dụng và đưa các phiên đó về Chưa xếp lịch."
 
    Bấm **"Áp dụng, đưa N phiên về Chưa xếp lịch"** (hoặc "Giữ lịch hiện tại" nếu muốn giữ dữ liệu demo).
    Kết quả phụ thuộc giờ demo: nếu demo sau 18:30 thì các phiên tối nay đã qua, nên chọn **"Một khoảng bận khác"** cho ngày mai.
-4. **Lịch của tôi → nút "Tập trung" trên một phiên → "Bắt đầu" → "Kết thúc & ghi nhận".** Sau đó mở **Nhìn lại**: biểu đồ và mục "Theo từng môn học" cập nhật nhờ sự kiện `StudySessionCompleted` tới analytics-service.
-5. **Thời gian thực:** ở cửa sổ phải, **Thêm công việc** với hạn **ngày mai**. Chuông ở cửa sổ trái hiện chấm đỏ ngay, không cần tải lại. Bấm chuông: "Một vài điều cần nhớ" có lời nhắc mới.
+5. **Lịch của tôi → nút "Tập trung" trên một phiên → "Bắt đầu" → "Kết thúc & ghi nhận".** Sau đó mở **Nhìn lại**: biểu đồ, mục "Theo từng môn học" và ô **"Dự kiến và thực tế"** cập nhật nhờ sự kiện `StudySessionCompleted` tới analytics-service (seed đã có một phiên dài hơn dự kiến 10 phút).
+   > "Nếu các phiên thường kéo dài hơn dự kiến, trang gợi ý em ước lượng dư thời gian cho việc mới.
+6. **Thời gian thực:** ở cửa sổ phải, **Thêm công việc** với hạn **ngày mai**. Chuông ở cửa sổ trái hiện chấm đỏ ngay, không cần tải lại. Bấm chuông: "Một vài điều cần nhớ" có lời nhắc mới.
    > "Đây là Server-Sent Events, chương 4."
 
 ### Phần B — Cơ chế phân tán (≈ 9 phút)
@@ -88,7 +95,7 @@ Lưu ý khi demo:
 
 Thứ tự ưu tiên khi bị cắt thời gian:
 
-1. Phần A bước 2 (thiếu thời gian) và bước 5 (thời gian thực).
+1. Phần A bước 1 (cứu kế hoạch), bước 3 (thiếu thời gian) và bước 6 (thời gian thực).
 2. `ch8`: dừng bản sao và crash; bỏ phần tắt RabbitMQ.
 3. `ch7`.
 4. `ch6`.
@@ -101,6 +108,7 @@ Thứ tự ưu tiên khi bị cắt thời gian:
 | Trình duyệt báo "Your connection is not private" | Gõ `thisisunsafe` trên trang (Chrome), hoặc tin cậy chứng chỉ (mục 1) |
 | `check` báo service chưa healthy | `npm run demo -- reset`, chờ khoảng 30 giây |
 | Đăng nhập demo thất bại | `npm run demo -- seed` |
+| Không thấy thẻ Cứu kế hoạch | Đã lỡ tay xếp lại hoặc bỏ qua khi tập dượt: `npm run demo -- seed` tạo lại phiên bị lỡ |
 | Replica không chép | `docker compose run --rm replica-setup` |
 | Cảnh báo không bắn trong `ch8` | Mở http://localhost:9090/alerts và chờ thêm; giải thích ngưỡng `for: 30s` |
 | Mọi thứ hỏng | Chuyển sang video đã quay hôm trước; vẫn giải thích được từng bước |
@@ -128,6 +136,9 @@ Dùng khóa lạc quan bằng `version`: người sau nhận 409 kèm bản hi�
 **Vì sao SSE mà không phải WebSocket?**
 Thông báo chỉ đi một chiều từ server tới client. SSE chạy trên HTTP thường (qua Nginx và HTTP/2), có cơ chế kết nối lại, và không cần thư viện. Sự kiện chỉ báo "đã đổi", client lấy dữ liệu qua REST, nên không có đường thứ hai làm lộ dữ liệu.
 
+**Lỡ một phiên học thì hệ thống xử lý thế nào? Thuật toán có tối ưu không?**
+Phiên `planned` ở ngày đã qua là phiên bỏ lỡ: nó không còn giữ chỗ, nên phần việc đó được xếp lại khi em bấm "Xếp lại phần đã lỡ". Thuật toán là heuristic tham lam: ưu tiên deadline gần trước, và cố xong trước hạn 1 ngày. Ngày dự phòng chỉ được giữ khi không việc nào bị thiếu giờ nhiều hơn so với cách xếp sát deadline. Thuật toán không cam kết lịch tối ưu tuyệt đối, nhưng với deadline thì ưu tiên hạn gần trước là cách tốt để không trễ hạn. Sau khi lập chỉ mục phiên theo ngày, 500 việc tính trong khoảng 0,1 giây (trước đây khoảng 0,5 giây).
+
 **Node.js đơn luồng thì "đa luồng" ở đâu?**
 I/O chạy bất đồng bộ trên event loop. Phần tính toán nặng (planner) chạy trong `worker_threads` có pool, timeout và hàng đợi giới hạn. Đo được: event loop bị chặn 1612 ms → 12 ms.
 
@@ -150,5 +161,7 @@ Tự nêu ra trước thường được đánh giá cao hơn là bị hỏi tr�
 - MySQL và RabbitMQ đều chạy một instance. Việc nâng replica lên thay MySQL chính đang làm thủ công.
 - Chưa có auto-scaling, chưa gom log tập trung (ELK/Loki), chưa có Alertmanager gửi cảnh báo ra ngoài.
 - TLS mới có từ trình duyệt tới gateway. Trong mạng Docker vẫn là kết nối thường, trừ replication MySQL.
+- Nhắc việc chỉ hiện khi web đang mở trong một tab (trong ứng dụng hoặc qua thông báo của trình duyệt). Chưa có PWA và push server để nhắc khi đã đóng tab.
+- Chưa có khóa phiên, phụ thuộc giữa các công việc và mô phỏng tăng thời lượng hoặc đổi ưu tiên (đặc tả FR06, FR11, FR13).
 - SSE và giới hạn đăng nhập sai đang lưu trong bộ nhớ từng tiến trình. Nếu nhân bản notification-service hoặc user-service thì cần kênh dùng chung (RabbitMQ fanout, Redis).
 - Thuật toán lập lịch là heuristic (deadline sớm trước), không cam kết tối ưu.

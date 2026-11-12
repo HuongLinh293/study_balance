@@ -3730,3 +3730,131 @@ small {
     position: relative;
   }
 }
+
+/* Cứu kế hoạch: missed sessions and overdue tasks (Dashboard). */
+.rescue-card {
+  border: 1px solid #e3c862;
+  background: #fdf6d8;
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rescue-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.rescue-head h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.rescue-head p {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+.rescue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.rescue-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid #ecdca0;
+  font-size: 12px;
+}
+.rescue-list li > span:first-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.rescue-list li strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rescue-list li small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.rescue-list li.overdue small {
+  color: #a3412a;
+}
+.rescue-list .rescue-more {
+  color: var(--muted);
+}
+.rescue-actions {
+  display: flex;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.rescue-card > .button {
+  align-self: flex-start;
+}
+@media (max-width: 520px) {
+  .rescue-list li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* A planned session on a past day that was not studied. */
+.calendar-block.missed,
+.timeline-row.missed .timeline-event {
+  opacity: 0.55;
+  outline: 1px dashed #8b8878;
+  outline-offset: -2px;
+}
+
+/* Step checklist in task detail. */
+.step-list label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  cursor: pointer;
+}
+.step-list input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ink);
+  flex-shrink: 0;
+}
+.step-list li.done span {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+h4 small {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* Second row of analytics cards: estimate accuracy and on-time rate. */
+.analytics-stats.pair {
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (max-width: 520px) {
+  .analytics-stats.pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Day headers stay visible while the week grid scrolls (it opens at the first study time). */
+.week-calendar > .week-day-header,
+.week-calendar > .calendar-time-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+.week-calendar > .week-day-header:not(.today),
+.week-calendar > .calendar-time-head {
+  background: var(--paper);
+}

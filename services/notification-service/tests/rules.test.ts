@@ -23,3 +23,13 @@ test('deadline reminders cover overdue, today and tomorrow, with stable dedupe k
 test('no reminders for an empty day', () => {
   assert.deepEqual(remindersFor('2026-10-24', [], 0), []);
 });
+test('a session reminder shows from 15 minutes before the start until the end', () => {
+  const sessions = [{ sessionId: 's1', title: 'Lab Wireshark', startMinute: 1170, minutes: 50 }];
+  assert.deepEqual(remindersFor('2026-10-24', [], 1, sessions, 1150).map((r) => r.kind), ['plan']);
+  const soon = remindersFor('2026-10-24', [], 1, sessions, 1160);
+  assert.equal(soon[0].kind, 'session');
+  assert.match(soon[0].title, /Sắp đến phiên học: Lab Wireshark/);
+  assert.equal(soon[0].body, '19:30 – 20:20, 50 phút.');
+  assert.match(remindersFor('2026-10-24', [], 1, sessions, 1180)[0].title, /Đang trong giờ học/);
+  assert.equal(remindersFor('2026-10-24', [], 1, sessions, 1220)[0].kind, 'plan');
+});

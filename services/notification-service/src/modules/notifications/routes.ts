@@ -4,7 +4,7 @@ import { hub } from './stream.js';
 
 interface NotificationRow {
   id: string;
-  kind: 'deadline' | 'plan';
+  kind: 'deadline' | 'plan' | 'session';
   task_id: string | null;
   title: string;
   body: string;

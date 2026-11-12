@@ -364,6 +364,19 @@ function Workspace({
                 onNote={(note) =>
                   void run(() => actions.saveProfile({ note }), "Đã lưu lời nhắn.")
                 }
+                onLogMissed={setFocus}
+                onSkipMissed={(id) =>
+                  void run(
+                    () => actions.removeSession(id),
+                    "Đã bỏ phiên đã lỡ. Thời lượng còn lại vẫn giữ nguyên.",
+                  )
+                }
+                onRescue={async (ids) => {
+                  const cleared = await run(async () => {
+                    for (const id of ids) await actions.removeSession(id);
+                  });
+                  if (cleared) setSuggesting(true);
+                }}
               />
             )}
             {page === "tasks" && (
@@ -494,6 +507,9 @@ function Workspace({
             onApplyProgress={(session) =>
               void run(() => actions.applyProgress(session), "Đã cập nhật thời lượng còn lại.")
             }
+            onToggleStep={(index, done) =>
+              void run(() => actions.toggleStep(selected, index, done))
+            }
             onClose={() => setDetail(null)}
             onDelete={async () => {
               if (await run(() => actions.deleteTask(selected.id), "Đã xóa công việc."))
@@ -516,6 +532,7 @@ function Workspace({
         {focus && (
           <FocusModal
             session={focus}
+            logOnly={focus.date < today}
             preferredMinutes={state.preferences.session}
             title={
               state.tasks.find((t) => t.id === focus.taskId)?.title ??
@@ -593,15 +610,19 @@ function Workspace({
                     {notifications.map((n) => (
                       <div key={n.id} className={n.read ? "is-read" : ""}>
                         <span
-                          className={`round-icon ${n.kind === "deadline" ? "yellow" : "pink"}`}
+                          className={`round-icon ${n.kind === "deadline" ? "yellow" : n.kind === "session" ? "blue" : "pink"}`}
                         >
-                          {n.kind === "deadline" ? <Clock /> : <Sparkle />}
+                          {n.kind === "deadline" ? <Clock /> : n.kind === "session" ? <Timer /> : <Sparkle />}
                         </span>
                         <div>
                           <h3>{n.title}</h3>
                           <p>{n.body}</p>
                           <small>
-                            {n.kind === "deadline" ? "Nhắc deadline" : "Kế hoạch"}
+                            {n.kind === "deadline"
+                              ? "Nhắc deadline"
+                              : n.kind === "session"
+                                ? "Phiên học"
+                                : "Kế hoạch"}
                           </small>
                         </div>
                       </div>
@@ -704,12 +725,15 @@ function Workspace({
 }
 function FocusModal({
   session,
+  logOnly = false,
   preferredMinutes,
   title,
   onClose,
   onFinish,
 }: {
   session: Session;
+  /** A past session: skip the timer and go straight to recording the time studied. */
+  logOnly?: boolean;
   preferredMinutes: number;
   title: string;
   onClose: () => void;
@@ -718,8 +742,8 @@ function FocusModal({
   const targetMinutes = Math.min(session.minutes, preferredMinutes);
   const [seconds, setSeconds] = useState(targetMinutes * 60);
   const [running, setRunning] = useState(false);
-  const [finishing, setFinishing] = useState(false);
-  const [actual, setActual] = useState(1);
+  const [finishing, setFinishing] = useState(logOnly);
+  const [actual, setActual] = useState(logOnly ? session.minutes : 1);
   useEffect(() => {
     if (!running) return;
     let previous = Date.now();
@@ -737,28 +761,35 @@ function FocusModal({
     if (seconds === 0) setRunning(false);
   }, [seconds]);
   return (
-    <Modal title="Chỉ một việc, ngay lúc này." onClose={onClose}>
+    <Modal
+      title={logOnly ? "Ghi lại phiên đã học" : "Chỉ một việc, ngay lúc này."}
+      onClose={onClose}
+    >
       <div className="focus-modal-body">
         <span className="round-icon pink">
           <Timer size={25} />
         </span>
         <h3>{title}</h3>
-        <div
-          className="timer-display"
-          role="timer"
-          aria-label={`${Math.floor(seconds / 60)} phút ${seconds % 60} giây`}
-        >
-          {String(Math.floor(seconds / 60)).padStart(2, "0")}
-          <span>:</span>
-          {String(seconds % 60).padStart(2, "0")}
-        </div>
-        <p>
-          {seconds === 0
-            ? "Đã hết thời gian. Nghỉ một chút nhé!"
-            : running
-              ? "Cứ tập trung vào bước tiếp theo."
-              : "Hít thở một chút. Bắt đầu khi bạn sẵn sàng."}
-        </p>
+        {!logOnly && (
+          <>
+            <div
+              className="timer-display"
+              role="timer"
+              aria-label={`${Math.floor(seconds / 60)} phút ${seconds % 60} giây`}
+            >
+              {String(Math.floor(seconds / 60)).padStart(2, "0")}
+              <span>:</span>
+              {String(seconds % 60).padStart(2, "0")}
+            </div>
+            <p>
+              {seconds === 0
+                ? "Đã hết thời gian. Nghỉ một chút nhé!"
+                : running
+                  ? "Cứ tập trung vào bước tiếp theo."
+                  : "Hít thở một chút. Bắt đầu khi bạn sẵn sàng."}
+            </p>
+          </>
+        )}
         {!finishing ? (
           <>
             <button

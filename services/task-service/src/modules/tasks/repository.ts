@@ -16,7 +16,7 @@ interface TaskRow {
   version: number;
 }
 export type Task = ReturnType<typeof toTask>;
-const toTask = (row: TaskRow, steps: string[]) => ({
+const toTask = (row: TaskRow, steps: { title: string; done: boolean }[]) => ({
   id: row.id,
   title: row.title,
   subjectId: row.subject_id,
@@ -25,7 +25,9 @@ const toTask = (row: TaskRow, steps: string[]) => ({
   priority: row.priority,
   done: Boolean(row.done),
   note: row.note,
-  steps,
+  steps: steps.map((s) => s.title),
+  /** Same order as `steps`: whether each step is ticked off. */
+  stepsDone: steps.map((s) => s.done),
   version: row.version,
 });
 
@@ -33,12 +35,18 @@ const SELECT = `SELECT id, user_id, subject_id, title, due_date, remaining_minut
 
 async function withSteps(db: Db, list: TaskRow[]) {
   if (!list.length) return [];
-  const steps = await rows<{ task_id: string; title: string }>(
+  const steps = await rows<{ task_id: string; title: string; done: number }>(
     db,
-    'SELECT task_id, title FROM subtasks WHERE task_id IN (?) ORDER BY position',
+    'SELECT task_id, title, done FROM subtasks WHERE task_id IN (?) ORDER BY position',
     [list.map((t) => t.id)],
   );
-  return list.map((t) => toTask(t, steps.filter((s) => s.task_id === t.id).map((s) => s.title)));
+  const byTask = new Map<string, { title: string; done: boolean }[]>();
+  for (const s of steps) {
+    const list = byTask.get(s.task_id) ?? [];
+    list.push({ title: s.title, done: Boolean(s.done) });
+    byTask.set(s.task_id, list);
+  }
+  return list.map((t) => toTask(t, byTask.get(t.id) ?? []));
 }
 export async function findTask(db: Db, userId: string, id: string, lock = false) {
   const [row] = await rows<TaskRow>(db, `${SELECT} WHERE id = ? AND user_id = ?${lock ? ' FOR UPDATE' : ''}`, [id, userId]);
@@ -56,11 +64,19 @@ export async function listTasks(db: Db, userId: string, status: 'open' | 'done' 
     nextOffset: list.length > limit ? offset + limit : null,
   };
 }
+/** Replaces the step list; a step whose title is kept stays ticked off. */
 export async function replaceSteps(conn: PoolConnection, taskId: string, steps: string[]) {
+  const ticked = (await rows<{ title: string }>(conn, 'SELECT title FROM subtasks WHERE task_id = ? AND done = 1', [taskId])).map(
+    (s) => s.title,
+  );
   await conn.query('DELETE FROM subtasks WHERE task_id = ?', [taskId]);
   if (steps.length) {
-    await conn.query('INSERT INTO subtasks (id, task_id, title, position) VALUES ?', [
-      steps.map((title, i) => [crypto.randomUUID(), taskId, title, i]),
+    await conn.query('INSERT INTO subtasks (id, task_id, title, position, done) VALUES ?', [
+      steps.map((title, i) => {
+        const at = ticked.indexOf(title);
+        if (at >= 0) ticked.splice(at, 1);
+        return [crypto.randomUUID(), taskId, title, i, at >= 0];
+      }),
     ]);
   }
 }

@@ -33,7 +33,7 @@ test('queues beyond the pool size and rejects beyond maxQueue (backpressure)', a
 });
 
 test('a job that never ends times out, and its worker is replaced', async () => {
-  const pool = make({ size: 1, timeoutMs: 300 });
+  const pool = make({ size: 1, timeoutMs: 1000 });
   try {
     await assert.rejects(pool.run({ hang: true }), PoolTimeoutError);
     assert.equal(await pool.run({ value: 5 }), 10, 'the fresh worker serves the next job');

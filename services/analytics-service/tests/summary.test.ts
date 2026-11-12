@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { chart, periodRange, streak } from '../src/modules/stats/summary.js';
+import { chart, estimateRatio, periodRange, streak } from '../src/modules/stats/summary.js';
 
 test('week runs Monday to Sunday and marks today', () => {
   assert.deepEqual(periodRange('week', '2026-10-24'), { from: '2026-10-19', to: '2026-10-25' });
@@ -19,4 +19,8 @@ test('streak counts back from today, or from yesterday before studying today', (
   assert.equal(streak('2026-10-24', days), 2);
   assert.equal(streak('2026-10-25', days), 0);
   assert.equal(streak('2026-10-23', days), 2);
+});
+test('estimate ratio compares actual with planned minutes', () => {
+  assert.equal(estimateRatio(100, 120), 1.2);
+  assert.equal(estimateRatio(0, 30), null);
 });

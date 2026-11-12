@@ -4,6 +4,7 @@ import { Check, SignOut, User, Timer } from "@phosphor-icons/react";
 import { Heading } from "../../components/Shared";
 import type { Availability, BusyPeriod, Preferences, StudyWindow } from "../../data/state";
 import { BusySettings, PasswordSettings, WindowsSettings } from "./AvailabilitySettings";
+import { browserNotificationsSupported, enableBrowserNotifications } from "../../lib/browserNotifications";
 export function SettingsPage({
   email,
   preferences,
@@ -126,9 +127,9 @@ export function SettingsPage({
           </label>
           <label className="toggle-label">
             <span>
-              <strong>Hiển thị lời nhắc trong ứng dụng</strong>
+              <strong>Hiển thị lời nhắc</strong>
               <small>
-                Nhắc deadline và phiên học trong ngày; không gửi email hay push.
+                Nhắc deadline, số phiên trong ngày và 15 phút trước mỗi phiên học.
               </small>
             </span>
             <input
@@ -140,6 +141,7 @@ export function SettingsPage({
               }
             />
           </label>
+          <BrowserNotificationSetting />
         </section>
         <div className="form-actions">
           <button className="button dark" type="submit" disabled={saving}>
@@ -167,5 +169,42 @@ export function SettingsPage({
         </button>
       </section>
     </>
+  );
+}
+
+/**
+ * System notifications while the tab is in the background. They need the page
+ * to be open in some tab: there is no push server or service worker.
+ */
+function BrowserNotificationSetting() {
+  const supported = browserNotificationsSupported();
+  const [permission, setPermission] = useState(supported ? Notification.permission : "denied");
+  return (
+    <div className="toggle-label">
+      <span>
+        <strong>Thông báo của trình duyệt</strong>
+        <small>
+          {!supported
+            ? "Trình duyệt này không hỗ trợ thông báo."
+            : permission === "granted"
+              ? "Đã bật. Lời nhắc hiện ra cả khi bạn đang ở tab khác (cần mở StudyBalance trong một tab)."
+              : permission === "denied"
+                ? "Đã bị chặn. Mở quyền thông báo cho trang này trong cài đặt trình duyệt."
+                : "Hiện lời nhắc cả khi bạn đang ở tab khác."}
+        </small>
+      </span>
+      {supported && permission === "default" && (
+        <button
+          type="button"
+          className="button"
+          onClick={async () => {
+            await enableBrowserNotifications();
+            setPermission(Notification.permission);
+          }}
+        >
+          Bật thông báo
+        </button>
+      )}
+    </div>
   );
 }

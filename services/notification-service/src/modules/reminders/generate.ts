@@ -16,7 +16,8 @@ export async function syncReminders(db: Db, userId: string, now = new Date()) {
     [userId],
   );
   const enabled = prefs ? Boolean(prefs.reminders) : true;
-  const today = localNow(prefs?.timezone, now).date;
+  const local = localNow(prefs?.timezone, now);
+  const today = local.date;
   const desired = enabled
     ? remindersFor(
         today,
@@ -34,6 +35,16 @@ export async function syncReminders(db: Db, userId: string, now = new Date()) {
             [userId, today],
           )
         )[0].n,
+        (
+          await rows<{ session_id: string; title: string | null; start_minute: number; minutes: number }>(
+            db,
+            `SELECT s.session_id, t.title, s.start_minute, s.minutes
+               FROM session_projection s LEFT JOIN task_projection t ON t.task_id = s.task_id
+              WHERE s.user_id = ? AND s.date = ? AND s.status = 'planned' AND s.deleted = 0 AND s.start_minute IS NOT NULL`,
+            [userId, today],
+          )
+        ).map((s) => ({ sessionId: s.session_id, title: s.title ?? 'Phiên học', startMinute: s.start_minute, minutes: s.minutes })),
+        local.minute,
       )
     : [];
   const removed = await exec(

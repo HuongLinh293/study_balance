@@ -34,4 +34,6 @@ export const migrations = [
     )`,
   },
   { name: '004_inbox', sql: inboxMigration },
+  { name: '005_session_planned', sql: 'ALTER TABLE session_facts ADD COLUMN planned_minutes INT NULL' },
+  { name: '006_task_due_dates', sql: 'ALTER TABLE task_facts ADD COLUMN due_date DATE NULL, ADD COLUMN completed_on DATE NULL' },
 ];
