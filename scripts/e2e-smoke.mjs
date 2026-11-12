@@ -209,6 +209,44 @@ await step('notification service creates and clears deadline reminders', async (
   assert.equal((await alice.ok('GET', '/api/notification/notifications')).unreadCount, 0);
 });
 
+await step('notification stream pushes changes through the gateway (SSE)', async () => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const unauthorized = await fetch(`${BASE}/api/notification/notifications/stream`, { signal: controller.signal });
+    assert.equal(unauthorized.status, 401);
+    await unauthorized.body?.cancel();
+    const res = await fetch(`${BASE}/api/notification/notifications/stream`, {
+      headers: { authorization: `Bearer ${alice.token}`, accept: 'text/event-stream' },
+      signal: controller.signal,
+    });
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type') ?? '', /^text\/event-stream/);
+    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+    let text = '';
+    const until = async (marker, times = 1) => {
+      while (text.split(marker).length - 1 < times) {
+        const { value, done } = await reader.read();
+        if (done) throw new Error(`stream ended early: ${text}`);
+        text += value;
+      }
+    };
+    await until('event: ready');
+    // A task due tomorrow creates a reminder via TaskCreated → the stream reports it.
+    const started = Date.now();
+    await alice.ok('POST', '/api/task/tasks', { id: randomUUID(), title: 'Ôn tập SSE', dueDate: tomorrow, remainingMinutes: 20 });
+    await until('event: notifications');
+    const pushedAfterMs = Date.now() - started;
+    // Marking everything read is pushed too (keeps other tabs in sync).
+    await alice.ok('POST', '/api/notification/notifications/read-all');
+    await until('event: notifications', 2);
+    console.log(`  pushed ${pushedAfterMs} ms after the task was created`);
+  } finally {
+    clearTimeout(timeout);
+    controller.abort();
+  }
+});
+
 await step('busy simulation across days: preview, stale detection, drop unscheduled', async () => {
   const d2 = addDays(today, 2);
   const s1 = await alice.ok('POST', '/api/planning/study-sessions', { taskId: ids.task, date: d2, startMinute: 9 * 60, minutes: 30 });

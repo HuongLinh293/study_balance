@@ -56,6 +56,12 @@ export const circuitRejections = new Counter({
   registers: [metrics],
 });
 
+export const streamConnections = new Gauge({
+  name: 'studybalance_stream_connections',
+  help: 'Open server-sent event streams',
+  registers: [metrics],
+});
+
 /** Outbox rows not yet confirmed by the broker, read at scrape time. */
 export function registerOutboxGauge(pending: () => Promise<number>) {
   if (metrics.getSingleMetric('studybalance_outbox_pending')) return;

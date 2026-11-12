@@ -3,6 +3,7 @@ import { buildApp } from './app.js';
 import { migrations } from './migrations.js';
 import { handlers } from './modules/reminders/handlers.js';
 import { startReminderScheduler } from './modules/reminders/generate.js';
+import { hub } from './modules/notifications/stream.js';
 
 const log = createLogger('notification-service');
 const pool = createPool(requireEnv('DATABASE_URL'));
@@ -14,6 +15,8 @@ await migrate(pool, migrations);
 broker.consume(pool, handlers);
 await broker.start();
 const stopScheduler = startReminderScheduler(pool, log);
+// Registered before listen(): open streams would otherwise keep server.close() waiting.
+for (const signal of ['SIGINT', 'SIGTERM'] as const) process.once(signal, () => hub.closeAll());
 listen(buildApp({ pool, broker, log, secret }), portEnv(3004), log, async () => {
   stopScheduler();
   await broker.close();

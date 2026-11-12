@@ -5,7 +5,7 @@ Trợ lý lập kế hoạch học tập cá nhân cho sinh viên. Đặc tả: 
 ## Trạng thái
 
 - **Backend:** năm service Express/TypeScript với MySQL (`mysql2`, migration SQL chạy khi khởi động) và RabbitMQ. Có xác thực JWT + refresh token xoay vòng, outbox/inbox, retry/DLQ và tự kết nối lại broker. Xem [tài liệu API và sự kiện](docs/api/README.md).
-- **Frontend:** đăng nhập/đăng ký, toàn bộ dữ liệu đọc ghi qua API (TanStack Query). Mô phỏng, thống kê và thông báo lấy từ service; không còn localStorage.
+- **Frontend:** đăng nhập/đăng ký, toàn bộ dữ liệu đọc ghi qua API (TanStack Query). Mô phỏng, thống kê và thông báo lấy từ service; không còn localStorage. Thông báo cập nhật thời gian thực qua Server-Sent Events (`/api/notification/notifications/stream`).
 - Lịch rảnh theo tuần và lịch bận/ngày nghỉ tùy chỉnh. Có đề xuất kế hoạch tự động kèm báo thiếu thời gian, và mô phỏng khoảng bận tùy chọn rải phiên sang nhiều ngày.
 - Chưa làm: quên mật khẩu qua email, gửi email/push, OpenAPI/Swagger, rate limit dùng chung khi user-service chạy nhiều replica.
 

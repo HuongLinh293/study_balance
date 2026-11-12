@@ -30,6 +30,8 @@ export function requireAuth(secret: Uint8Array): RequestHandler {
       });
       if (!payload.sub) throw new Error('No subject');
       res.locals.userId = payload.sub;
+      // Long-lived responses (event streams) end when the token does.
+      res.locals.tokenExpiresAt = (payload.exp ?? 0) * 1000;
       next();
     } catch {
       next(new HttpError(401, 'UNAUTHENTICATED', 'Invalid or expired access token'));

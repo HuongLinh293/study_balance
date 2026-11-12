@@ -72,8 +72,9 @@ Ba chức năng kiểm tra phiên, đề xuất và mô phỏng dùng chung mộ
 | GET | `/notifications?limit` | `{items: [{id, kind: deadline\|plan, taskId, title, body, createdAt, read}], unreadCount}` |
 | PATCH | `/notifications/:id/read` | |
 | POST | `/notifications/read-all` | |
+| GET | `/notifications/stream` | Server-Sent Events (`text/event-stream`). Gửi `event: ready` khi mở, `event: notifications` mỗi khi danh sách của người dùng đổi (lời nhắc mới/bị gỡ, đánh dấu đã đọc), `: ping` mỗi 25 s. Sự kiện không kèm dữ liệu: client gọi lại `GET /notifications`. Stream đóng khi access token hết hạn; client mở lại với token mới. Tối đa 5 stream mỗi người dùng |
 
-Lời nhắc sinh từ projection: việc quá hạn, đến hạn hôm nay hoặc ngày mai, và số phiên học hôm nay. Mỗi lời nhắc có unique key `(user_id, dedupe_key)` nên không lưu trùng. Lời nhắc chưa đọc tự bị gỡ khi không còn đúng (việc xong, bị xóa, dời deadline). Scheduler chạy mỗi phút để xử lý lúc sang ngày. Chỉ là thông báo trong app, không gửi email/push.
+Lời nhắc sinh từ projection: việc quá hạn, đến hạn hôm nay hoặc ngày mai, và số phiên học hôm nay. Mỗi lời nhắc có unique key `(user_id, dedupe_key)` nên không lưu trùng. Lời nhắc chưa đọc tự bị gỡ khi không còn đúng (việc xong, bị xóa, dời deadline). Scheduler chạy mỗi phút để xử lý lúc sang ngày. Chỉ là thông báo trong app, không gửi email/push. Giao diện nhận thay đổi qua stream ở trên, chỉ hỏi lại mỗi 60 s khi stream mất kết nối.
 
 ## Analytics — `/api/analytics`
 

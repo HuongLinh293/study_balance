@@ -1,0 +1,45 @@
+@startuml 09-thong-bao-realtime
+!include _style.iuml
+title Thông báo thời gian thực — Server-Sent Events qua gateway
+autonumber
+
+participant "Frontend\n(useNotificationStream)" as fe
+participant "Nginx gateway\nHTTPS, HTTP/2" as gw
+participant "notification-service\nNotificationHub" as ns
+database "notification_db" as db
+queue "RabbitMQ" as mq
+participant "task-service" as ts
+
+fe -> gw : GET /api/notification/notifications/stream\nAuthorization: Bearer JWT (fetch streaming)
+gw -> ns : proxy (X-Accel-Buffering: no → không giữ đệm)
+ns --> fe : 200 text/event-stream\nretry: 5000, event: ready
+fe -> fe : tắt polling 60 s, tải danh sách một lần (bắt kịp)
+
+loop mỗi 25 s
+  ns --> fe : ": ping" (giữ kết nối qua proxy_read_timeout 60 s)
+end
+
+ts -> mq : TaskCreated (công việc hạn ngày mai)
+mq -> ns : giao sự kiện
+group Một transaction (inbox + projection + lời nhắc)
+  ns -> db : syncReminders: INSERT IGNORE notifications
+end
+ns -> ns : afterCommit → hub.publish(userId)
+ns --> fe : event: notifications (chỉ báo "đã đổi", không kèm dữ liệu)
+fe -> gw : GET /api/notification/notifications
+gw -> ns
+ns --> fe : danh sách mới (qua REST, cùng kiểm tra quyền)
+
+== JWT hết hạn (15 phút) hoặc service khởi động lại ==
+ns --> fe : đóng stream
+fe -> fe : bật lại polling; chờ 1 s → 30 s (backoff)
+fe -> gw : mở lại stream (401 → refresh token → thử lại)
+
+note over ns
+  Gửi sau commit để client không đọc dữ liệu cũ.
+  Đánh dấu đã đọc cũng phát sự kiện → các tab khác cập nhật.
+  Tối đa 5 stream mỗi người dùng; metric studybalance_stream_connections.
+  Hub nằm trong tiến trình: nhiều bản sao notification-service
+  sẽ cần kênh chung (RabbitMQ fanout) để tới mọi stream.
+end note
+@enduml

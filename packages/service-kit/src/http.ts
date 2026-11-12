@@ -33,7 +33,9 @@ export function createServiceApp(
       const ms = performance.now() - started;
       // Route template (/tasks/:id), not the raw path, keeps label cardinality bounded.
       const route = req.route ? `${req.baseUrl}${String(req.route.path)}` : 'unmatched';
-      httpRequestDuration.observe({ method: req.method, route, status: String(res.statusCode) }, ms / 1000);
+      // Event streams stay open for minutes; they would distort the latency histogram.
+      const streaming = String(res.getHeader('content-type') ?? '').startsWith('text/event-stream');
+      if (!streaming) httpRequestDuration.observe({ method: req.method, route, status: String(res.statusCode) }, ms / 1000);
       log.info('http_request', {
         method: req.method,
         path: req.path,

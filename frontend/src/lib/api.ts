@@ -97,6 +97,27 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
   }
 }
 
+/**
+ * Opens a long-lived GET (server-sent events) with the current access token.
+ * EventSource cannot send an Authorization header, so streams use fetch.
+ */
+export async function openStream(path: string, signal: AbortSignal): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(path, {
+      credentials: "same-origin",
+      cache: "no-store",
+      signal,
+      headers: {
+        accept: "text/event-stream",
+        ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+      },
+    });
+    if (res.status === 401 && attempt === 0 && (await refresh())) continue;
+    if (!res.ok || !res.body) throw new ApiError(res.status, `HTTP_${res.status}`, res.statusText);
+    return res;
+  }
+}
+
 export interface Profile {
   id: string;
   email: string;

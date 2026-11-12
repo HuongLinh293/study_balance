@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { exec, notFound, parse, rows, userIdOf, z, type Pool } from '@studybalance/service-kit';
+import { hub } from './stream.js';
 
 interface NotificationRow {
   id: string;
@@ -42,6 +43,11 @@ export function notificationsRouter(pool: Pool) {
     res.json({ items: list.map(toNotification), unreadCount: n });
   });
 
+  // Live updates: an event whenever this user's list changes (other tabs included).
+  router.get('/notifications/stream', (_req, res) => {
+    hub.open(userIdOf(res), res, res.locals.tokenExpiresAt as number);
+  });
+
   router.patch('/notifications/:id/read', async (req, res) => {
     const { id } = parse(idParam, req.params);
     const result = await exec(
@@ -50,13 +56,15 @@ export function notificationsRouter(pool: Pool) {
       [id, userIdOf(res)],
     );
     if (!result.affectedRows) throw notFound('Notification');
+    if (result.changedRows) hub.publish(userIdOf(res));
     res.status(204).end();
   });
 
   router.post('/notifications/read-all', async (_req, res) => {
-    await exec(pool, 'UPDATE notifications SET read_at = CURRENT_TIMESTAMP(3) WHERE user_id = ? AND read_at IS NULL', [
+    const result = await exec(pool, 'UPDATE notifications SET read_at = CURRENT_TIMESTAMP(3) WHERE user_id = ? AND read_at IS NULL', [
       userIdOf(res),
     ]);
+    if (result.affectedRows) hub.publish(userIdOf(res));
     res.status(204).end();
   });
 

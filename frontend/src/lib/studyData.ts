@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, setAccessToken, type Profile } from "./api";
+import { useNotificationStream } from "./notificationStream";
 import { addDays, todayISO } from "../data/dates";
 import type {
   AppState,
@@ -161,6 +162,10 @@ export function useStudyData() {
       ).items;
     },
   });
+  // Pushed by the notification service; polling is only the fallback while the stream is down.
+  const streaming = useNotificationStream(
+    () => void client.invalidateQueries({ queryKey: keys.notifications }),
+  );
   const notifications = useQuery({
     queryKey: keys.notifications,
     queryFn: () =>
@@ -168,7 +173,7 @@ export function useStudyData() {
         "GET",
         "/api/notification/notifications",
       ),
-    refetchInterval: 60_000,
+    refetchInterval: streaming ? false : 60_000,
   });
 
   const state = useMemo<AppState | null>(() => {

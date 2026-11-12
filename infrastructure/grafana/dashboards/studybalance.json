@@ -608,6 +608,38 @@
     "overrides": []
    },
    "options": {}
+  },
+  {
+   "id": 17,
+   "title": "Kết nối SSE đang mở",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 39,
+    "w": 12,
+    "h": 7
+   },
+   "description": "Stream thông báo thời gian thực của notification-service.",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (service) (studybalance_stream_connections)",
+     "legendFormat": "{{service}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {}
   }
  ]
 }

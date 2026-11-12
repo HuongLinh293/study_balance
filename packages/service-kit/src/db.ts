@@ -13,17 +13,38 @@ export function createPool(url: string): Pool {
     supportBigNumbers: true,
   });
 }
+const commitHooks = new WeakMap<object, (() => void)[]>();
+/**
+ * Run `fn` once the surrounding transaction has committed (dropped on rollback).
+ * Outside withTransaction (a pool, autocommit) it runs immediately.
+ */
+export function afterCommit(db: Db, fn: () => void) {
+  const hooks = commitHooks.get(db);
+  if (hooks) hooks.push(fn);
+  else fn();
+}
 export async function withTransaction<T>(pool: Pool, work: (conn: PoolConnection) => Promise<T>): Promise<T> {
   const conn = await pool.getConnection();
+  const hooks: (() => void)[] = [];
+  commitHooks.set(conn, hooks);
   try {
     await conn.beginTransaction();
     const result = await work(conn);
     await conn.commit();
+    commitHooks.delete(conn);
+    for (const hook of hooks) {
+      try {
+        hook();
+      } catch {
+        // A failing side effect must not turn a committed transaction into an error.
+      }
+    }
     return result;
   } catch (error) {
     await conn.rollback().catch(() => undefined);
     throw error;
   } finally {
+    commitHooks.delete(conn);
     conn.release();
   }
 }

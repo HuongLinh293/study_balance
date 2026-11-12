@@ -12,6 +12,7 @@ Sơ đồ viết bằng PlantUML (`*.puml`), có sẵn bản `.svg` và `.png`. 
 | 06 | [Xác thực](06-xac-thuc.png) | JWT 15 phút, refresh token xoay vòng, phát hiện token bị dùng lại |
 | 07 | [Chịu lỗi](07-chiu-loi.png) | Bản sao chết qua gateway; circuit breaker giữa các service |
 | 08 | [Circuit breaker](08-circuit-breaker.png) | Trạng thái Closed / Open / HalfOpen |
+| 09 | [Thông báo thời gian thực](09-thong-bao-realtime.png) | SSE qua gateway, gửi sau commit, tự kết nối lại |
 
 ![Kiến trúc tổng thể](01-tong-quan.png)
 

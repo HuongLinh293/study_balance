@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import { addDays, errorMessage, exec, localNow, rows, type Db, type Logger, type Pool } from '@studybalance/service-kit';
+import { addDays, afterCommit, errorMessage, exec, localNow, rows, type Db, type Logger, type Pool } from '@studybalance/service-kit';
+import { hub } from '../notifications/stream.js';
 import { remindersFor, type ReminderTask } from './rules.js';
 
 /**
  * Brings one user's reminders in line with the current projections: inserts
  * missing ones (INSERT IGNORE on the dedupe key) and removes unread reminders
  * that no longer apply (task done, deleted, deadline moved, plan emptied).
+ * Open streams of the user are told once the change is committed.
  */
 export async function syncReminders(db: Db, userId: string, now = new Date()) {
   const [prefs] = await rows<{ reminders: number; timezone: string }>(
@@ -34,18 +36,22 @@ export async function syncReminders(db: Db, userId: string, now = new Date()) {
         )[0].n,
       )
     : [];
-  await exec(
+  const removed = await exec(
     db,
     `DELETE FROM notifications WHERE user_id = ? AND read_at IS NULL${desired.length ? ' AND dedupe_key NOT IN (?)' : ''}`,
     desired.length ? [userId, desired.map((r) => r.dedupeKey)] : [userId],
   );
+  let changed = removed.affectedRows > 0;
   for (const r of desired) {
-    await exec(
+    const inserted = await exec(
       db,
       'INSERT IGNORE INTO notifications (id, user_id, kind, dedupe_key, task_id, title, body) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [randomUUID(), userId, r.kind, r.dedupeKey, r.taskId, r.title, r.body],
     );
+    if (inserted.affectedRows) changed = true;
   }
+  if (changed) afterCommit(db, () => hub.publish(userId));
+  return changed;
 }
 
 /** Periodic pass for date rollover (a task becomes "due tomorrow" without any event). */
